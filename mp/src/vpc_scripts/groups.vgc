@@ -1,0 +1,26 @@
+//-----------------------------------------------------------------------------
+//	GROUPS.VGC
+//
+//	Group Configurations for all Source(TM) Projects
+//-----------------------------------------------------------------------------
+
+///////////////////////
+// Group definitions //
+///////////////////////
+
+$Group "game"
+{
+	"client"
+	"mathlib"
+	"raytrace"
+	"server"
+	"tier1"
+	"vgui_controls"
+}
+
+$Group "dedicated"
+{
+	"mathlib"
+	"server"
+	"tier1"
+}
