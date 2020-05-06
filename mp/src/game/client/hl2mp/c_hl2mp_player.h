@@ -40,7 +40,6 @@ public:
 	QAngle GetAnimEyeAngles( void ) { return m_angEyeAngles; }
 	Vector GetAttackSpread( CBaseCombatWeapon *pWeapon, CBaseEntity *pTarget = NULL );
 
-
 	// Should this object cast shadows?
 	virtual ShadowType_t		ShadowCastType( void );
 	virtual C_BaseAnimating *BecomeRagdollOnClient();
@@ -58,31 +57,18 @@ public:
 	virtual void CreateLightEffects( void ) {}
 	virtual bool ShouldReceiveProjectedTextures( int flags );
 	virtual void PostDataUpdate( DataUpdateType_t updateType );
-	virtual void PlayStepSound( Vector &vecOrigin, surfacedata_t *psurface, float fvol, bool force );
 	virtual void PreThink( void );
 	virtual void DoImpactEffect( trace_t &tr, int nDamageType );
 	IRagdoll* GetRepresentativeRagdoll() const;
 	virtual void CalcView( Vector &eyeOrigin, QAngle &eyeAngles, float &zNear, float &zFar, float &fov );
 	virtual const QAngle& EyeAngles( void );
 
-	
-	bool	CanSprint( void );
-	void	StartSprinting( void );
-	void	StopSprinting( void );
-	void	HandleSpeedChanges( void );
 	void	UpdateLookAt( void );
 	void	Initialize( void );
 	int		GetIDTarget() const;
 	void	UpdateIDTarget( void );
-	void	PrecacheFootStepSounds( void );
-	const char	*GetPlayerModelSoundPrefix( void );
 
 	HL2MPPlayerState State_Get() const;
-
-	// Walking
-	void StartWalking( void );
-	void StopWalking( void );
-	bool IsWalking( void ) { return m_fIsWalking; }
 
 	virtual void PostThink( void );
 
@@ -119,14 +105,10 @@ private:
 	int	  m_iSpawnInterpCounter;
 	int	  m_iSpawnInterpCounterCache;
 
-	int	  m_iPlayerSoundType;
-
 	void ReleaseFlashlight( void );
 	Beam_t	*m_pFlashlightBeam;
 
 	CNetworkVar( HL2MPPlayerState, m_iPlayerState );	
-
-	bool m_fIsWalking;
 };
 
 inline C_HL2MP_Player *ToHL2MPPlayer( CBaseEntity *pEntity )

@@ -27,21 +27,12 @@ IMPLEMENT_CLIENTCLASS_DT(C_HL2MP_Player, DT_HL2MP_Player, CHL2MP_Player)
 	RecvPropFloat( RECVINFO( m_angEyeAngles[1] ) ),
 	RecvPropEHandle( RECVINFO( m_hRagdoll ) ),
 	RecvPropInt( RECVINFO( m_iSpawnInterpCounter ) ),
-	RecvPropInt( RECVINFO( m_iPlayerSoundType) ),
-
-	RecvPropBool( RECVINFO( m_fIsWalking ) ),
 END_RECV_TABLE()
 
 BEGIN_PREDICTION_DATA( C_HL2MP_Player )
-	DEFINE_PRED_FIELD( m_fIsWalking, FIELD_BOOLEAN, FTYPEDESC_INSENDTABLE ),
 END_PREDICTION_DATA()
 
-#define	HL2_WALK_SPEED 150
-#define	HL2_NORM_SPEED 190
-#define	HL2_SPRINT_SPEED 320
-
 static ConVar cl_playermodel( "cl_playermodel", "none", FCVAR_USERINFO | FCVAR_ARCHIVE | FCVAR_SERVER_CAN_EXECUTE, "Default Player Model");
-static ConVar cl_defaultweapon( "cl_defaultweapon", "weapon_physcannon", FCVAR_USERINFO | FCVAR_ARCHIVE, "Default Spawn Weapon");
 
 void SpawnBlood (Vector vecSpot, const Vector &vecDir, int bloodColor, float flDamage);
 
@@ -119,14 +110,6 @@ void C_HL2MP_Player::TraceAttack( const CTakeDamageInfo &info, const Vector &vec
 		AddMultiDamage( info, this );
 
 		int blood = BloodColor();
-		
-		CBaseEntity *pAttacker = info.GetAttacker();
-
-		if ( pAttacker )
-		{
-			if ( HL2MPRules()->IsTeamplay() && pAttacker->InSameTeam( this ) == true )
-				return;
-		}
 
 		if ( blood != DONT_BLEED )
 		{
@@ -308,44 +291,24 @@ void C_HL2MP_Player::PreThink( void )
 	QAngle vTempAngles = GetLocalAngles();
 
 	if ( GetLocalPlayer() == this )
-	{
 		vTempAngles[PITCH] = EyeAngles()[PITCH];
-	}
 	else
-	{
 		vTempAngles[PITCH] = m_angEyeAngles[PITCH];
-	}
 
 	if ( vTempAngles[YAW] < 0.0f )
-	{
 		vTempAngles[YAW] += 360.0f;
-	}
 
 	SetLocalAngles( vTempAngles );
 
 	BaseClass::PreThink();
-
-	HandleSpeedChanges();
-
-	if ( m_HL2Local.m_flSuitPower <= 0.0f )
-	{
-		if( IsSprinting() )
-		{
-			StopSprinting();
-		}
-	}
 }
 
 const QAngle &C_HL2MP_Player::EyeAngles()
 {
 	if( IsLocalPlayer() )
-	{
 		return BaseClass::EyeAngles();
-	}
 	else
-	{
 		return m_angEyeAngles;
-	}
 }
 
 //-----------------------------------------------------------------------------
@@ -452,13 +415,9 @@ ShadowType_t C_HL2MP_Player::ShadowCastType( void )
 const QAngle& C_HL2MP_Player::GetRenderAngles()
 {
 	if ( IsRagdoll() )
-	{
 		return vec3_angle;
-	}
 	else
-	{
 		return m_PlayerAnimState.GetRenderAngles();
-	}
 }
 
 bool C_HL2MP_Player::ShouldDraw( void )
@@ -467,8 +426,8 @@ bool C_HL2MP_Player::ShouldDraw( void )
 	if ( !IsAlive() )
 		return false;
 
-//	if( GetTeamNumber() == TEAM_SPECTATOR )
-//		return false;
+	if( GetTeamNumber() == TEAM_SPECTATOR )
+		return false;
 
 	if( IsLocalPlayer() && IsRagdoll() )
 		return true;
@@ -551,109 +510,6 @@ Vector C_HL2MP_Player::GetAutoaimVector( float flDelta )
 	Vector	forward;
 	AngleVectors( EyeAngles() + m_Local.m_vecPunchAngle, &forward );
 	return	forward;
-}
-
-//-----------------------------------------------------------------------------
-// Purpose: Returns whether or not we are allowed to sprint now.
-//-----------------------------------------------------------------------------
-bool C_HL2MP_Player::CanSprint( void )
-{
-	return ( (!m_Local.m_bDucked && !m_Local.m_bDucking) && (GetWaterLevel() != 3) );
-}
-
-
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-void C_HL2MP_Player::StartSprinting( void )
-{
-	if( m_HL2Local.m_flSuitPower < 10 )
-	{
-		// Don't sprint unless there's a reasonable
-		// amount of suit power.
-		CPASAttenuationFilter filter( this );
-		filter.UsePredictionRules();
-		EmitSound( filter, entindex(), "HL2Player.SprintNoPower" );
-		return;
-	}
-
-	CPASAttenuationFilter filter( this );
-	filter.UsePredictionRules();
-	EmitSound( filter, entindex(), "HL2Player.SprintStart" );
-
-	SetMaxSpeed( HL2_SPRINT_SPEED );
-	m_fIsSprinting = true;
-}
-
-
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-void C_HL2MP_Player::StopSprinting( void )
-{
-	SetMaxSpeed( HL2_NORM_SPEED );
-	m_fIsSprinting = false;
-}
-
-void C_HL2MP_Player::HandleSpeedChanges( void )
-{
-	int buttonsChanged = m_afButtonPressed | m_afButtonReleased;
-
-	if( buttonsChanged & IN_SPEED )
-	{
-		// The state of the sprint/run button has changed.
-		if ( IsSuitEquipped() )
-		{
-			if ( !(m_afButtonPressed & IN_SPEED)  && IsSprinting() )
-			{
-				StopSprinting();
-			}
-			else if ( (m_afButtonPressed & IN_SPEED) && !IsSprinting() )
-			{
-				if ( CanSprint() )
-				{
-					StartSprinting();
-				}
-				else
-				{
-					// Reset key, so it will be activated post whatever is suppressing it.
-					m_nButtons &= ~IN_SPEED;
-				}
-			}
-		}
-	}
-	else if( buttonsChanged & IN_WALK )
-	{
-		if ( IsSuitEquipped() )
-		{
-			// The state of the WALK button has changed. 
-			if( IsWalking() && !(m_afButtonPressed & IN_WALK) )
-			{
-				StopWalking();
-			}
-			else if( !IsWalking() && !IsSprinting() && (m_afButtonPressed & IN_WALK) && !(m_nButtons & IN_DUCK) )
-			{
-				StartWalking();
-			}
-		}
-	}
-
-	if ( IsSuitEquipped() && m_fIsWalking && !(m_nButtons & IN_WALK)  ) 
-		StopWalking();
-}
-
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-void C_HL2MP_Player::StartWalking( void )
-{
-	SetMaxSpeed( HL2_WALK_SPEED );
-	m_fIsWalking = true;
-}
-
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-void C_HL2MP_Player::StopWalking( void )
-{
-	SetMaxSpeed( HL2_NORM_SPEED );
-	m_fIsWalking = false;
 }
 
 void C_HL2MP_Player::ItemPreFrame( void )

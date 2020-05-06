@@ -12,7 +12,6 @@
 #include "vgui_entitypanel.h"
 #include "iclientmode.h"
 #include "vgui/ILocalize.h"
-#include "hl2mp_gamerules.h"
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
@@ -140,7 +139,6 @@ void CTargetID::Paint()
 	if ( iEntIndex )
 	{
 		C_BasePlayer *pPlayer = static_cast<C_BasePlayer*>(cl_entitylist->GetEnt( iEntIndex ));
-		C_BasePlayer *pLocalPlayer = C_BasePlayer::GetLocalPlayer();
 
 		const char *printFormatString = NULL;
 		wchar_t wszPlayerName[ MAX_PLAYER_NAME_LENGTH ];
@@ -156,19 +154,12 @@ void CTargetID::Paint()
 			c = GetColorForTargetTeam( pPlayer->GetTeamNumber() );
 
 			bShowPlayerName = true;
+			bShowHealth = true;
+			
 			g_pVGuiLocalize->ConvertANSIToUnicode( pPlayer->GetPlayerName(),  wszPlayerName, sizeof(wszPlayerName) );
 			
-			if ( HL2MPRules()->IsTeamplay() == true && pPlayer->InSameTeam(pLocalPlayer) )
-			{
-				printFormatString = "#Playerid_sameteam";
-				bShowHealth = true;
-			}
-			else
-			{
-				printFormatString = "#Playerid_diffteam";
-			}
+			printFormatString = "#Playerid_diffteam";
 		
-
 			if ( bShowHealth )
 			{
 				_snwprintf( wszHealthText, ARRAYSIZE(wszHealthText) - 1, L"%.0f%%",  ((float)pPlayer->GetHealth() / (float)pPlayer->GetMaxHealth() ) );
@@ -179,21 +170,13 @@ void CTargetID::Paint()
 		if ( printFormatString )
 		{
 			if ( bShowPlayerName && bShowHealth )
-			{
 				g_pVGuiLocalize->ConstructString( sIDString, sizeof(sIDString), g_pVGuiLocalize->Find(printFormatString), 2, wszPlayerName, wszHealthText );
-			}
 			else if ( bShowPlayerName )
-			{
 				g_pVGuiLocalize->ConstructString( sIDString, sizeof(sIDString), g_pVGuiLocalize->Find(printFormatString), 1, wszPlayerName );
-			}
 			else if ( bShowHealth )
-			{
 				g_pVGuiLocalize->ConstructString( sIDString, sizeof(sIDString), g_pVGuiLocalize->Find(printFormatString), 1, wszHealthText );
-			}
 			else
-			{
 				g_pVGuiLocalize->ConstructString( sIDString, sizeof(sIDString), g_pVGuiLocalize->Find(printFormatString), 0 );
-			}
 		}
 
 		if ( sIDString[0] )
@@ -205,13 +188,9 @@ void CTargetID::Paint()
 			vgui::surface()->GetTextSize( m_hFont, sIDString, wide, tall );
 
 			if( hud_centerid.GetInt() == 0 )
-			{
 				ypos = YRES(420);
-			}
 			else
-			{
 				xpos = (ScreenWidth() - wide) / 2;
-			}
 			
 			vgui::surface()->DrawSetTextFont( m_hFont );
 			vgui::surface()->DrawSetTextPos( xpos, ypos );

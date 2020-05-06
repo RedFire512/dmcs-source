@@ -10,7 +10,6 @@
 //
 // $NoKeywords: $
 //=============================================================================//
-
 #ifndef HL2MP_GAMERULES_H
 #define HL2MP_GAMERULES_H
 #pragma once
@@ -22,16 +21,6 @@
 #ifndef CLIENT_DLL
 #include "hl2mp_player.h"
 #endif
-
-#define VEC_CROUCH_TRACE_MIN	HL2MPRules()->GetHL2MPViewVectors()->m_vCrouchTraceMin
-#define VEC_CROUCH_TRACE_MAX	HL2MPRules()->GetHL2MPViewVectors()->m_vCrouchTraceMax
-
-enum
-{
-	TEAM_COMBINE = 2,
-	TEAM_REBELS,
-};
-
 
 #ifdef CLIENT_DLL
 	#define CHL2MPRules C_HL2MPRules
@@ -45,51 +34,14 @@ public:
 	DECLARE_NETWORKCLASS();
 };
 
-class HL2MPViewVectors : public CViewVectors
-{
-public:
-	HL2MPViewVectors( 
-		Vector vView,
-		Vector vHullMin,
-		Vector vHullMax,
-		Vector vDuckHullMin,
-		Vector vDuckHullMax,
-		Vector vDuckView,
-		Vector vObsHullMin,
-		Vector vObsHullMax,
-		Vector vDeadViewHeight,
-		Vector vCrouchTraceMin,
-		Vector vCrouchTraceMax ) :
-			CViewVectors( 
-				vView,
-				vHullMin,
-				vHullMax,
-				vDuckHullMin,
-				vDuckHullMax,
-				vDuckView,
-				vObsHullMin,
-				vObsHullMax,
-				vDeadViewHeight )
-	{
-		m_vCrouchTraceMin = vCrouchTraceMin;
-		m_vCrouchTraceMax = vCrouchTraceMax;
-	}
-
-	Vector m_vCrouchTraceMin;
-	Vector m_vCrouchTraceMax;	
-};
-
 class CHL2MPRules : public CTeamplayRules
 {
 public:
 	DECLARE_CLASS( CHL2MPRules, CTeamplayRules );
 
 #ifdef CLIENT_DLL
-
 	DECLARE_CLIENTCLASS_NOBASE(); // This makes datatables able to access our private vars.
-
 #else
-
 	DECLARE_SERVERCLASS_NOBASE(); // This makes datatables able to access our private vars.
 #endif
 	
@@ -107,14 +59,13 @@ public:
 	virtual void Think( void );
 	virtual void CreateStandardEntities( void );
 	virtual void ClientSettingsChanged( CBasePlayer *pPlayer );
-	virtual int PlayerRelationship( CBaseEntity *pPlayer, CBaseEntity *pTarget );
+	virtual int PlayerRelationship( CBaseEntity *pPlayer, CBaseEntity *pTarget ) { return GR_NOTTEAMMATE; }
 	virtual void GoToIntermission( void );
 	virtual void DeathNotice( CBasePlayer *pVictim, const CTakeDamageInfo &info );
-	virtual const char *GetGameDescription( void );
+	virtual const char *GetGameDescription( void ) { return "Deathmatch Classic Source"; } 
+
 	// derive this function if you mod uses encrypted weapon info files
 	virtual const unsigned char *GetEncryptionKey( void ) { return (unsigned char *)"x9Ke0BY7"; }
-	virtual const CViewVectors* GetViewVectors() const;
-	const HL2MPViewVectors* GetHL2MPViewVectors() const;
 
 	float GetMapRemainingTime();
 	void CleanUpMap();
@@ -126,12 +77,10 @@ public:
 	virtual QAngle VecItemRespawnAngles( CItem *pItem );
 	virtual float	FlItemRespawnTime( CItem *pItem );
 	virtual bool	CanHavePlayerItem( CBasePlayer *pPlayer, CBaseCombatWeapon *pItem );
-	virtual bool FShouldSwitchWeapon( CBasePlayer *pPlayer, CBaseCombatWeapon *pWeapon );
 
 	void	AddLevelDesignerPlacedObject( CBaseEntity *pEntity );
 	void	RemoveLevelDesignerPlacedObject( CBaseEntity *pEntity );
 	void	ManageObjectRelocation( void );
-	void    CheckChatForReadySignal( CHL2MP_Player *pPlayer, const char *chatmsg );
 	const char *GetChatFormat( bool bTeamOnly, CBasePlayer *pPlayer );
 
 #endif
@@ -141,23 +90,18 @@ public:
 	bool IsIntermission( void );
 
 	void PlayerKilled( CBasePlayer *pVictim, const CTakeDamageInfo &info );
-
 	
-	bool	IsTeamplay( void ) { return m_bTeamPlayEnabled;	}
-	void	CheckAllPlayersReady( void );
+	bool	IsTeamplay( void ) { return false;	}
 
-	virtual bool IsConnectedUserInfoChangeAllowed( CBasePlayer *pPlayer );
+	virtual bool IsConnectedUserInfoChangeAllowed( CBasePlayer *pPlayer ) { return true; }
 	
 private:
 	
-	CNetworkVar( bool, m_bTeamPlayEnabled );
 	CNetworkVar( float, m_flGameStartTime );
 	CUtlVector<EHANDLE> m_hRespawnableItemsAndWeapons;
 	float m_tmNextPeriodicThink;
 	float m_flRestartGameTime;
 	bool m_bCompleteReset;
-	bool m_bAwaitingReadyRestart;
-	bool m_bHeardAllPlayersReady;
 
 #ifndef CLIENT_DLL
 	bool m_bChangelevelDone;
