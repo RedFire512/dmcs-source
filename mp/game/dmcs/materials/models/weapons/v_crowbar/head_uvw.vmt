@@ -1,0 +1,10 @@
+"Vertexlitgeneric"
+{
+	"$basetexture" "models/Weapons/v_crowbar/head"
+	"$bumpmap" "models/Weapons/v_crowbar/head_normal"
+	"$phong" "1"
+	"$phongexponent" "15"
+	"$phongboost"	"3"
+	"$phongfresnelranges"	"[.3 0.4 1]"
+
+}
