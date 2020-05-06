@@ -16,7 +16,7 @@
 
 
 #include "basegrenade_shared.h"
-#include "hl2mp/weapon_slam.h"
+//#include "weapon_slam.h"
 
 class CSoundPatch;
 
@@ -41,7 +41,7 @@ public:
 	Vector			m_vLastPosition;
 
 public:
-	CWeapon_SLAM*	m_pMyWeaponSLAM;	// Who shot me..
+	//CWeapon_SLAM*	m_pMyWeaponSLAM;	// Who shot me..
 	bool			m_bIsAttached;
 	void			Deactivate( void );
 

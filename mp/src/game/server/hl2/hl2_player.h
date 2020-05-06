@@ -10,7 +10,7 @@
 #pragma once
 
 
-#include "player.h"
+#include "basemultiplayerplayer.h"
 #include "hl2_playerlocaldata.h"
 #include "simtimer.h"
 #include "soundenvelope.h"
@@ -75,10 +75,10 @@ public:
 //=============================================================================
 // >> HL2_PLAYER
 //=============================================================================
-class CHL2_Player : public CBasePlayer
+class CHL2_Player : public CBaseMultiplayerPlayer
 {
 public:
-	DECLARE_CLASS( CHL2_Player, CBasePlayer );
+	DECLARE_CLASS( CHL2_Player, CBaseMultiplayerPlayer );
 
 	CHL2_Player();
 	~CHL2_Player( void );

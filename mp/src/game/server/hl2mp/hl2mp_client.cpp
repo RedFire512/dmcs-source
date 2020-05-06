@@ -1,21 +1,12 @@
 //========= Copyright Valve Corporation, All rights reserved. ============//
 //
-// Purpose: 
+// Purpose: HL2 client/server game specific stuff
 //
 // $NoKeywords: $
 //
 //=============================================================================//
-/*
-
-===== tf_client.cpp ========================================================
-
-  HL2 client/server game specific stuff
-
-*/
-
 #include "cbase.h"
 #include "hl2mp_player.h"
-#include "hl2mp_gamerules.h"
 #include "gamerules.h"
 #include "teamplay_gamerules.h"
 #include "entitylist.h"
@@ -24,16 +15,10 @@
 #include "player_resource.h"
 #include "engine/IEngineSound.h"
 #include "team.h"
-#include "viewport_panel_names.h"
-
 #include "tier0/vprof.h"
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
-
-void Host_Say( edict_t *pEdict, bool teamonly );
-
-ConVar sv_motd_unload_on_dismissal( "sv_motd_unload_on_dismissal", "0", 0, "If enabled, the MOTD contents will be unloaded when the player closes the MOTD." );
 
 extern CBaseEntity*	FindPickerEntityClass( CBasePlayer *pPlayer, char *classname );
 extern bool			g_fGameOver;
@@ -42,7 +27,6 @@ void FinishClientPutInServer( CHL2MP_Player *pPlayer )
 {
 	pPlayer->InitialSpawn();
 	pPlayer->Spawn();
-
 
 	char sName[128];
 	Q_strncpy( sName, pPlayer->GetPlayerName(), sizeof( sName ) );
@@ -57,24 +41,6 @@ void FinishClientPutInServer( CHL2MP_Player *pPlayer )
 
 	// notify other clients of player joining the game
 	UTIL_ClientPrintAll( HUD_PRINTNOTIFY, "#Game_connected", sName[0] != 0 ? sName : "<unconnected>" );
-
-	if ( HL2MPRules()->IsTeamplay() == true )
-	{
-		ClientPrint( pPlayer, HUD_PRINTTALK, "You are on team %s1\n", pPlayer->GetTeam()->GetName() );
-	}
-
-	const ConVar *hostname = cvar->FindVar( "hostname" );
-	const char *title = (hostname) ? hostname->GetString() : "MESSAGE OF THE DAY";
-
-	KeyValues *data = new KeyValues("data");
-	data->SetString( "title", title );		// info panel title
-	data->SetString( "type", "1" );			// show userdata from stringtable entry
-	data->SetString( "msg",	"motd" );		// use this stringtable entry
-	data->SetBool( "unload", sv_motd_unload_on_dismissal.GetBool() );
-
-	pPlayer->ShowViewPortPanel( PANEL_INFO, true, data );
-
-	data->deleteThis();
 }
 
 /*
@@ -114,7 +80,7 @@ const char *GetGameDescription()
 	if ( g_pGameRules ) // this function may be called before the world has spawned, and the game rules initialized
 		return g_pGameRules->GetGameDescription();
 	else
-		return "Half-Life 2 Deathmatch";
+		return "Deathmatch Classic Source";
 }
 
 //-----------------------------------------------------------------------------
@@ -182,7 +148,7 @@ void GameStartFrame( void )
 	if ( g_fGameOver )
 		return;
 
-	gpGlobals->teamplay = (teamplay.GetInt() != 0);
+	gpGlobals->teamplay = false;
 
 #ifdef DEBUG
 	extern void Bot_RunAll();

@@ -99,18 +99,19 @@ int CHudChat::GetChatInputOffset( void )
 Color CHudChat::GetClientColor( int clientIndex )
 {
 	if ( clientIndex == 0 ) // console msg
-	{
-		return g_ColorYellow;
-	}
-	else if( g_PR )
+		return g_ColorGreen;
+
+	if( g_PR )
 	{
 		switch ( g_PR->GetTeam( clientIndex ) )
 		{
-		case TEAM_COMBINE	: return g_ColorBlue;
-		case TEAM_REBELS	: return g_ColorRed;
-		default	: return g_ColorYellow;
+			case TEAM_UNASSIGNED: 
+				return g_ColorYellow;
+
+			default:
+				return Color( 255, 255, 255 );
 		}
 	}
 
-	return g_ColorYellow;
+	return Color( 255, 255, 255 );
 }

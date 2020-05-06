@@ -17,50 +17,33 @@
 #include "KeyValues.h"
 #include "team.h"
 #include "weapon_hl2mpbase.h"
-#include "grenade_satchel.h"
 #include "eventqueue.h"
 #include "gamestats.h"
-
 #include "engine/IEngineSound.h"
 #include "SoundEmitterSystem/isoundemittersystembase.h"
-
 #include "ilagcompensationmanager.h"
+#include "viewport_panel_names.h"
 
-int g_iLastCitizenModel = 0;
-int g_iLastCombineModel = 0;
+ConVar sv_motd_unload_on_dismissal( "sv_motd_unload_on_dismissal", "0", 0, "If enabled, the MOTD contents will be unloaded when the player closes the MOTD." );
 
-CBaseEntity	 *g_pLastCombineSpawn = NULL;
-CBaseEntity	 *g_pLastRebelSpawn = NULL;
-extern CBaseEntity				*g_pLastSpawn;
-
-#define HL2MP_COMMAND_MAX_RATE 0.3
-
-void DropPrimedFragGrenade( CHL2MP_Player *pPlayer, CBaseCombatWeapon *pGrenade );
+extern CBaseEntity	*g_pLastSpawn;
 
 LINK_ENTITY_TO_CLASS( player, CHL2MP_Player );
-
-LINK_ENTITY_TO_CLASS( info_player_combine, CPointEntity );
-LINK_ENTITY_TO_CLASS( info_player_rebel, CPointEntity );
 
 IMPLEMENT_SERVERCLASS_ST(CHL2MP_Player, DT_HL2MP_Player)
 	SendPropAngle( SENDINFO_VECTORELEM(m_angEyeAngles, 0), 11, SPROP_CHANGES_OFTEN ),
 	SendPropAngle( SENDINFO_VECTORELEM(m_angEyeAngles, 1), 11, SPROP_CHANGES_OFTEN ),
 	SendPropEHandle( SENDINFO( m_hRagdoll ) ),
 	SendPropInt( SENDINFO( m_iSpawnInterpCounter), 4 ),
-	SendPropInt( SENDINFO( m_iPlayerSoundType), 3 ),
 	
 	SendPropExclude( "DT_BaseAnimating", "m_flPoseParameter" ),
-	SendPropExclude( "DT_BaseFlex", "m_viewtarget" ),
-
-//	SendPropExclude( "DT_ServerAnimationData" , "m_flCycle" ),	
-//	SendPropExclude( "DT_AnimTimeMustBeFirst" , "m_flAnimTime" ),
-	
+	SendPropExclude( "DT_BaseFlex", "m_viewtarget" ),	
 END_SEND_TABLE()
 
 BEGIN_DATADESC( CHL2MP_Player )
 END_DATADESC()
 
-const char *g_ppszRandomCitizenModels[] = 
+const char *g_ppszRandomPlayerModels[] = 
 {
 	"models/humans/group03/male_01.mdl",
 	"models/humans/group03/male_02.mdl",
@@ -77,21 +60,13 @@ const char *g_ppszRandomCitizenModels[] =
 	"models/humans/group03/female_07.mdl",
 	"models/humans/group03/male_08.mdl",
 	"models/humans/group03/male_09.mdl",
-};
-
-const char *g_ppszRandomCombineModels[] =
-{
 	"models/combine_soldier.mdl",
 	"models/combine_soldier_prisonguard.mdl",
 	"models/combine_super_soldier.mdl",
 	"models/police.mdl",
 };
 
-
-#define MAX_COMBINE_MODELS 4
 #define MODEL_CHANGE_INTERVAL 5.0f
-#define TEAM_CHANGE_INTERVAL 5.0f
-
 #define HL2MPPLAYER_PHYSDAMAGE_SCALE 4.0f
 
 #pragma warning( disable : 4355 )
@@ -103,16 +78,10 @@ CHL2MP_Player::CHL2MP_Player() : m_PlayerAnimState( this )
 	m_iLastWeaponFireUsercmd = 0;
 
 	m_flNextModelChangeTime = 0.0f;
-	m_flNextTeamChangeTime = 0.0f;
 
 	m_iSpawnInterpCounter = 0;
 
     m_bEnterObserver = false;
-	m_bReady = false;
-
-	BaseClass::ChangeTeam( 0 );
-	
-//	UseClientSideAnimation();
 }
 
 CHL2MP_Player::~CHL2MP_Player( void )
@@ -137,149 +106,77 @@ void CHL2MP_Player::Precache( void )
 
 	PrecacheModel ( "sprites/glow01.vmt" );
 
-	//Precache Citizen models
-	int nHeads = ARRAYSIZE( g_ppszRandomCitizenModels );
+	//Precache Player models
+	int nHeads = ARRAYSIZE( g_ppszRandomPlayerModels );
 	int i;	
 
 	for ( i = 0; i < nHeads; ++i )
-	   	 PrecacheModel( g_ppszRandomCitizenModels[i] );
-
-	//Precache Combine Models
-	nHeads = ARRAYSIZE( g_ppszRandomCombineModels );
-
-	for ( i = 0; i < nHeads; ++i )
-	   	 PrecacheModel( g_ppszRandomCombineModels[i] );
-
-	PrecacheFootStepSounds();
-
-	PrecacheScriptSound( "NPC_MetroPolice.Die" );
-	PrecacheScriptSound( "NPC_CombineS.Die" );
-	PrecacheScriptSound( "NPC_Citizen.die" );
+	   	 PrecacheModel( g_ppszRandomPlayerModels[i] );
 }
 
 void CHL2MP_Player::GiveAllItems( void )
 {
 	EquipSuit();
 
-	CBasePlayer::GiveAmmo( 255,	"Pistol");
-	CBasePlayer::GiveAmmo( 255,	"AR2" );
-	CBasePlayer::GiveAmmo( 5,	"AR2AltFire" );
-	CBasePlayer::GiveAmmo( 255,	"SMG1");
-	CBasePlayer::GiveAmmo( 1,	"smg1_grenade");
 	CBasePlayer::GiveAmmo( 255,	"Buckshot");
-	CBasePlayer::GiveAmmo( 32,	"357" );
 	CBasePlayer::GiveAmmo( 3,	"rpg_round");
 
-	CBasePlayer::GiveAmmo( 1,	"grenade" );
-	CBasePlayer::GiveAmmo( 2,	"slam" );
-
 	GiveNamedItem( "weapon_crowbar" );
-	GiveNamedItem( "weapon_stunstick" );
-	GiveNamedItem( "weapon_pistol" );
-	GiveNamedItem( "weapon_357" );
-
-	GiveNamedItem( "weapon_smg1" );
-	GiveNamedItem( "weapon_ar2" );
-	
 	GiveNamedItem( "weapon_shotgun" );
-	GiveNamedItem( "weapon_frag" );
-	
-	GiveNamedItem( "weapon_crossbow" );
-	
-	GiveNamedItem( "weapon_rpg" );
-
-	GiveNamedItem( "weapon_slam" );
-
-	GiveNamedItem( "weapon_physcannon" );
-	
+	GiveNamedItem( "weapon_rpg" );	
 }
 
 void CHL2MP_Player::GiveDefaultItems( void )
 {
 	EquipSuit();
 
-	CBasePlayer::GiveAmmo( 255,	"Pistol");
-	CBasePlayer::GiveAmmo( 45,	"SMG1");
-	CBasePlayer::GiveAmmo( 1,	"grenade" );
-	CBasePlayer::GiveAmmo( 6,	"Buckshot");
-	CBasePlayer::GiveAmmo( 6,	"357" );
-
-	if ( GetPlayerModelType() == PLAYER_SOUNDS_METROPOLICE || GetPlayerModelType() == PLAYER_SOUNDS_COMBINESOLDIER )
-	{
-		GiveNamedItem( "weapon_stunstick" );
-	}
-	else if ( GetPlayerModelType() == PLAYER_SOUNDS_CITIZEN )
-	{
-		GiveNamedItem( "weapon_crowbar" );
-	}
-	
-	GiveNamedItem( "weapon_pistol" );
-	GiveNamedItem( "weapon_smg1" );
-	GiveNamedItem( "weapon_frag" );
-	GiveNamedItem( "weapon_physcannon" );
-
-	const char *szDefaultWeaponName = engine->GetClientConVarValue( engine->IndexOfEdict( edict() ), "cl_defaultweapon" );
-
-	CBaseCombatWeapon *pDefaultWeapon = Weapon_OwnsThisType( szDefaultWeaponName );
-
-	if ( pDefaultWeapon )
-	{
-		Weapon_Switch( pDefaultWeapon );
-	}
-	else
-	{
-		Weapon_Switch( Weapon_OwnsThisType( "weapon_physcannon" ) );
-	}
+	CBasePlayer::GiveAmmo( 6, "Buckshot");
+	GiveNamedItem( "weapon_crowbar" );
 }
 
 void CHL2MP_Player::PickDefaultSpawnTeam( void )
 {
 	if ( GetTeamNumber() == 0 )
 	{
-		if ( HL2MPRules()->IsTeamplay() == false )
+		if ( GetModelPtr() == NULL )
 		{
-			if ( GetModelPtr() == NULL )
+			const char *szModelName = NULL;
+			szModelName = engine->GetClientConVarValue( engine->IndexOfEdict( edict() ), "cl_playermodel" );
+
+			if ( ValidatePlayerModel( szModelName ) == false )
 			{
-				const char *szModelName = NULL;
-				szModelName = engine->GetClientConVarValue( engine->IndexOfEdict( edict() ), "cl_playermodel" );
+				char szReturnString[512];
 
-				if ( ValidatePlayerModel( szModelName ) == false )
-				{
-					char szReturnString[512];
-
-					Q_snprintf( szReturnString, sizeof (szReturnString ), "cl_playermodel models/combine_soldier.mdl\n" );
-					engine->ClientCommand ( edict(), szReturnString );
-				}
-
-				ChangeTeam( TEAM_UNASSIGNED );
+				Q_snprintf( szReturnString, sizeof (szReturnString ), "cl_playermodel models/combine_soldier.mdl\n" );
+				engine->ClientCommand ( edict(), szReturnString );
 			}
-		}
-		else
-		{
-			CTeam *pCombine = g_Teams[TEAM_COMBINE];
-			CTeam *pRebels = g_Teams[TEAM_REBELS];
 
-			if ( pCombine == NULL || pRebels == NULL )
-			{
-				ChangeTeam( random->RandomInt( TEAM_COMBINE, TEAM_REBELS ) );
-			}
-			else
-			{
-				if ( pCombine->GetNumPlayers() > pRebels->GetNumPlayers() )
-				{
-					ChangeTeam( TEAM_REBELS );
-				}
-				else if ( pCombine->GetNumPlayers() < pRebels->GetNumPlayers() )
-				{
-					ChangeTeam( TEAM_COMBINE );
-				}
-				else
-				{
-					ChangeTeam( random->RandomInt( TEAM_COMBINE, TEAM_REBELS ) );
-				}
-			}
+			ChangeTeam( TEAM_UNASSIGNED );
 		}
 	}
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Called the first time the player's created
+//-----------------------------------------------------------------------------
+void CHL2MP_Player::InitialSpawn( void )
+{
+	BaseClass::InitialSpawn();
+
+	// open info panel on client showing MOTD:
+	const ConVar *hostname = cvar->FindVar( "hostname" );
+	const char *title = ( hostname ) ? hostname->GetString() : "MESSAGE OF THE DAY";
+
+	KeyValues *data = new KeyValues( "data" );
+	data->SetString( "title",	title );									// info panel title
+	data->SetString( "type",	"1" );										// show userdata from stringtable entry
+	data->SetString( "msg",		"motd" );									// use this stringtable entry
+	data->SetInt(	 "cmd",		TEXTWINDOW_CMD_JOINGAME );					// exec this command if panel closed
+	data->SetBool(	 "unload",  sv_motd_unload_on_dismissal.GetBool() );
+
+	ShowViewPortPanel( PANEL_INFO, true, data );
+
+	data->deleteThis();
 }
 
 //-----------------------------------------------------------------------------
@@ -288,7 +185,6 @@ void CHL2MP_Player::PickDefaultSpawnTeam( void )
 void CHL2MP_Player::Spawn(void)
 {
 	m_flNextModelChangeTime = 0.0f;
-	m_flNextTeamChangeTime = 0.0f;
 
 	PickDefaultSpawnTeam();
 
@@ -316,101 +212,31 @@ void CHL2MP_Player::Spawn(void)
 	m_impactEnergyScale = HL2MPPLAYER_PHYSDAMAGE_SCALE;
 
 	if ( HL2MPRules()->IsIntermission() )
-	{
 		AddFlag( FL_FROZEN );
-	}
 	else
-	{
 		RemoveFlag( FL_FROZEN );
-	}
 
 	m_iSpawnInterpCounter = (m_iSpawnInterpCounter + 1) % 8;
 
 	m_Local.m_bDucked = false;
 
-	SetPlayerUnderwater(false);
-
-	m_bReady = false;
-}
-
-void CHL2MP_Player::PickupObject( CBaseEntity *pObject, bool bLimitMassAndSize )
-{
-	
+	SetPlayerUnderwater( false );
 }
 
 bool CHL2MP_Player::ValidatePlayerModel( const char *pModel )
 {
-	int iModels = ARRAYSIZE( g_ppszRandomCitizenModels );
+	int iModels = ARRAYSIZE( g_ppszRandomPlayerModels );
 	int i;	
 
 	for ( i = 0; i < iModels; ++i )
 	{
-		if ( !Q_stricmp( g_ppszRandomCitizenModels[i], pModel ) )
-		{
-			return true;
-		}
-	}
-
-	iModels = ARRAYSIZE( g_ppszRandomCombineModels );
-
-	for ( i = 0; i < iModels; ++i )
-	{
-	   	if ( !Q_stricmp( g_ppszRandomCombineModels[i], pModel ) )
+		if ( !Q_stricmp( g_ppszRandomPlayerModels[i], pModel ) )
 		{
 			return true;
 		}
 	}
 
 	return false;
-}
-
-void CHL2MP_Player::SetPlayerTeamModel( void )
-{
-	const char *szModelName = NULL;
-	szModelName = engine->GetClientConVarValue( engine->IndexOfEdict( edict() ), "cl_playermodel" );
-
-	int modelIndex = modelinfo->GetModelIndex( szModelName );
-
-	if ( modelIndex == -1 || ValidatePlayerModel( szModelName ) == false )
-	{
-		szModelName = "models/Combine_Soldier.mdl";
-		m_iModelType = TEAM_COMBINE;
-
-		char szReturnString[512];
-
-		Q_snprintf( szReturnString, sizeof (szReturnString ), "cl_playermodel %s\n", szModelName );
-		engine->ClientCommand ( edict(), szReturnString );
-	}
-
-	if ( GetTeamNumber() == TEAM_COMBINE )
-	{
-		if ( Q_stristr( szModelName, "models/human") )
-		{
-			int nHeads = ARRAYSIZE( g_ppszRandomCombineModels );
-		
-			g_iLastCombineModel = ( g_iLastCombineModel + 1 ) % nHeads;
-			szModelName = g_ppszRandomCombineModels[g_iLastCombineModel];
-		}
-
-		m_iModelType = TEAM_COMBINE;
-	}
-	else if ( GetTeamNumber() == TEAM_REBELS )
-	{
-		if ( !Q_stristr( szModelName, "models/human") )
-		{
-			int nHeads = ARRAYSIZE( g_ppszRandomCitizenModels );
-
-			g_iLastCitizenModel = ( g_iLastCitizenModel + 1 ) % nHeads;
-			szModelName = g_ppszRandomCitizenModels[g_iLastCitizenModel];
-		}
-
-		m_iModelType = TEAM_REBELS;
-	}
-	
-	SetModel( szModelName );
-	SetupPlayerSoundsByModel( szModelName );
-
-	m_flNextModelChangeTime = gpGlobals->curtime + MODEL_CHANGE_INTERVAL;
 }
 
 void CHL2MP_Player::SetPlayerModel( void )
@@ -425,9 +251,7 @@ void CHL2MP_Player::SetPlayerModel( void )
 		char szReturnString[512];
 
 		if ( ValidatePlayerModel( pszCurrentModelName ) == false )
-		{
 			pszCurrentModelName = "models/Combine_Soldier.mdl";
-		}
 
 		Q_snprintf( szReturnString, sizeof (szReturnString ), "cl_playermodel %s\n", pszCurrentModelName );
 		engine->ClientCommand ( edict(), szReturnString );
@@ -435,47 +259,14 @@ void CHL2MP_Player::SetPlayerModel( void )
 		szModelName = pszCurrentModelName;
 	}
 
-	if ( GetTeamNumber() == TEAM_COMBINE )
-	{
-		int nHeads = ARRAYSIZE( g_ppszRandomCombineModels );
-		
-		g_iLastCombineModel = ( g_iLastCombineModel + 1 ) % nHeads;
-		szModelName = g_ppszRandomCombineModels[g_iLastCombineModel];
-
-		m_iModelType = TEAM_COMBINE;
-	}
-	else if ( GetTeamNumber() == TEAM_REBELS )
-	{
-		int nHeads = ARRAYSIZE( g_ppszRandomCitizenModels );
-
-		g_iLastCitizenModel = ( g_iLastCitizenModel + 1 ) % nHeads;
-		szModelName = g_ppszRandomCitizenModels[g_iLastCitizenModel];
-
-		m_iModelType = TEAM_REBELS;
-	}
-	else
-	{
-		if ( Q_strlen( szModelName ) == 0 ) 
-		{
-			szModelName = g_ppszRandomCitizenModels[0];
-		}
-
-		if ( Q_stristr( szModelName, "models/human") )
-		{
-			m_iModelType = TEAM_REBELS;
-		}
-		else
-		{
-			m_iModelType = TEAM_COMBINE;
-		}
-	}
+	if ( Q_strlen( szModelName ) == 0 ) 
+		szModelName = g_ppszRandomPlayerModels[0];
 
 	int modelIndex = modelinfo->GetModelIndex( szModelName );
 
 	if ( modelIndex == -1 )
 	{
 		szModelName = "models/Combine_Soldier.mdl";
-		m_iModelType = TEAM_COMBINE;
 
 		char szReturnString[512];
 
@@ -484,25 +275,8 @@ void CHL2MP_Player::SetPlayerModel( void )
 	}
 
 	SetModel( szModelName );
-	SetupPlayerSoundsByModel( szModelName );
 
 	m_flNextModelChangeTime = gpGlobals->curtime + MODEL_CHANGE_INTERVAL;
-}
-
-void CHL2MP_Player::SetupPlayerSoundsByModel( const char *pModelName )
-{
-	if ( Q_stristr( pModelName, "models/human") )
-	{
-		m_iPlayerSoundType = (int)PLAYER_SOUNDS_CITIZEN;
-	}
-	else if ( Q_stristr(pModelName, "police" ) )
-	{
-		m_iPlayerSoundType = (int)PLAYER_SOUNDS_METROPOLICE;
-	}
-	else if ( Q_stristr(pModelName, "combine" ) )
-	{
-		m_iPlayerSoundType = (int)PLAYER_SOUNDS_COMBINESOLDIER;
-	}
 }
 
 void CHL2MP_Player::ResetAnimation( void )
@@ -525,11 +299,8 @@ void CHL2MP_Player::ResetAnimation( void )
 bool CHL2MP_Player::Weapon_Switch( CBaseCombatWeapon *pWeapon, int viewmodelindex )
 {
 	bool bRet = BaseClass::Weapon_Switch( pWeapon, viewmodelindex );
-
 	if ( bRet == true )
-	{
 		ResetAnimation();
-	}
 
 	return bRet;
 }
@@ -542,9 +313,7 @@ void CHL2MP_Player::PreThink( void )
 	vTempAngles = EyeAngles();
 
 	if ( vTempAngles[PITCH] > 180.0f )
-	{
 		vTempAngles[PITCH] -= 360.0f;
-	}
 
 	SetLocalAngles( vTempAngles );
 
@@ -559,11 +328,6 @@ void CHL2MP_Player::PreThink( void )
 void CHL2MP_Player::PostThink( void )
 {
 	BaseClass::PostThink();
-	
-	if ( GetFlags() & FL_DUCKING )
-	{
-		SetCollisionBounds( VEC_CROUCH_TRACE_MIN, VEC_CROUCH_TRACE_MAX );
-	}
 
 	m_PlayerAnimState.Update();
 
@@ -591,11 +355,8 @@ void CHL2MP_Player::FireBullets ( const FireBulletsInfo_t &info )
 	FireBulletsInfo_t modinfo = info;
 
 	CWeaponHL2MPBase *pWeapon = dynamic_cast<CWeaponHL2MPBase *>( GetActiveWeapon() );
-
 	if ( pWeapon )
-	{
 		modinfo.m_iPlayerDamage = modinfo.m_flDamage = pWeapon->GetHL2MPWpnData().m_iPlayerDamage;
-	}
 
 	NoteWeaponFired();
 
@@ -652,25 +413,6 @@ bool CHL2MP_Player::WantsLagCompensationOnEntity( const CBasePlayer *pPlayer, co
 	return true;
 }
 
-Activity CHL2MP_Player::TranslateTeamActivity( Activity ActToTranslate )
-{
-	if ( m_iModelType == TEAM_COMBINE )
-		 return ActToTranslate;
-	
-	if ( ActToTranslate == ACT_RUN )
-		 return ACT_RUN_AIM_AGITATED;
-
-	if ( ActToTranslate == ACT_IDLE )
-		 return ACT_IDLE_AIM_AGITATED;
-
-	if ( ActToTranslate == ACT_WALK )
-		 return ACT_WALK_AIM_AGITATED;
-
-	return ActToTranslate;
-}
-
-extern ConVar hl2_normspeed;
-
 // Set the activity based on an event or current state
 void CHL2MP_Player::SetAnimation( PLAYER_ANIM playerAnim )
 {
@@ -679,18 +421,6 @@ void CHL2MP_Player::SetAnimation( PLAYER_ANIM playerAnim )
 	float speed;
 
 	speed = GetAbsVelocity().Length2D();
-
-	
-	// bool bRunning = true;
-
-	//Revisit!
-/*	if ( ( m_nButtons & ( IN_FORWARD | IN_BACK | IN_MOVELEFT | IN_MOVERIGHT ) ) )
-	{
-		if ( speed > 1.0f && speed < hl2_normspeed.GetFloat() - 20.0f )
-		{
-			bRunning = false;
-		}
-	}*/
 
 	if ( GetFlags() & ( FL_FROZEN | FL_ATCONTROLS ) )
 	{
@@ -737,15 +467,6 @@ void CHL2MP_Player::SetAnimation( PLAYER_ANIM playerAnim )
 		{
 			idealActivity = GetActivity( );
 		}
-		/*
-		else if ( GetWaterLevel() > 1 )
-		{
-			if ( speed == 0 )
-				idealActivity = ACT_HOVER;
-			else
-				idealActivity = ACT_SWIM;
-		}
-		*/
 		else
 		{
 			if ( GetFlags() & FL_DUCKING )
@@ -763,16 +484,7 @@ void CHL2MP_Player::SetAnimation( PLAYER_ANIM playerAnim )
 			{
 				if ( speed > 0 )
 				{
-					/*
-					if ( bRunning == false )
-					{
-						idealActivity = ACT_WALK;
-					}
-					else
-					*/
-					{
-						idealActivity = ACT_HL2MP_RUN;
-					}
+					idealActivity = ACT_HL2MP_RUN;
 				}
 				else
 				{
@@ -780,8 +492,6 @@ void CHL2MP_Player::SetAnimation( PLAYER_ANIM playerAnim )
 				}
 			}
 		}
-
-		idealActivity = TranslateTeamActivity( idealActivity );
 	}
 	
 	if ( idealActivity == ACT_HL2MP_GESTURE_RANGE_ATTACK )
@@ -890,43 +600,15 @@ bool CHL2MP_Player::BumpWeapon( CBaseCombatWeapon *pWeapon )
 
 void CHL2MP_Player::ChangeTeam( int iTeam )
 {
-/*	if ( GetNextTeamChangeTime() >= gpGlobals->curtime )
-	{
-		char szReturnString[128];
-		Q_snprintf( szReturnString, sizeof( szReturnString ), "Please wait %d more seconds before trying to switch teams again.\n", (int)(GetNextTeamChangeTime() - gpGlobals->curtime) );
-
-		ClientPrint( this, HUD_PRINTTALK, szReturnString );
-		return;
-	}*/
-
-	bool bKill = false;
-
 	if ( HL2MPRules()->IsTeamplay() != true && iTeam != TEAM_SPECTATOR )
 	{
 		//don't let them try to join combine or rebels during deathmatch.
 		iTeam = TEAM_UNASSIGNED;
 	}
 
-	if ( HL2MPRules()->IsTeamplay() == true )
-	{
-		if ( iTeam != GetTeamNumber() && GetTeamNumber() != TEAM_UNASSIGNED )
-		{
-			bKill = true;
-		}
-	}
-
 	BaseClass::ChangeTeam( iTeam );
 
-	m_flNextTeamChangeTime = gpGlobals->curtime + TEAM_CHANGE_INTERVAL;
-
-	if ( HL2MPRules()->IsTeamplay() == true )
-	{
-		SetPlayerTeamModel();
-	}
-	else
-	{
-		SetPlayerModel();
-	}
+	SetPlayerModel();
 
 	if ( iTeam == TEAM_SPECTATOR )
 	{
@@ -935,10 +617,7 @@ void CHL2MP_Player::ChangeTeam( int iTeam )
 		State_Transition( STATE_OBSERVER_MODE );
 	}
 
-	if ( bKill == true )
-	{
-		CommitSuicide();
-	}
+	CommitSuicide();
 }
 
 bool CHL2MP_Player::HandleCommand_JoinTeam( int team )
@@ -995,20 +674,6 @@ bool CHL2MP_Player::ClientCommand( const CCommand &args )
 		}
 		return true;
 	}
-	else if ( FStrEq( args[0], "jointeam" ) ) 
-	{
-		if ( args.ArgC() < 2 )
-		{
-			Warning( "Player sent bad jointeam syntax\n" );
-		}
-
-		if ( ShouldRunRateLimitedCommand( args ) )
-		{
-			int iTeam = atoi( args[1] );
-			HandleCommand_JoinTeam( iTeam );
-		}
-		return true;
-	}
 	else if ( FStrEq( args[0], "joingame" ) )
 	{
 		return true;
@@ -1032,26 +697,6 @@ void CHL2MP_Player::CheatImpulseCommands( int iImpulse )
 
 		default:
 			BaseClass::CheatImpulseCommands( iImpulse );
-	}
-}
-
-bool CHL2MP_Player::ShouldRunRateLimitedCommand( const CCommand &args )
-{
-	int i = m_RateLimitLastCommandTimes.Find( args[0] );
-	if ( i == m_RateLimitLastCommandTimes.InvalidIndex() )
-	{
-		m_RateLimitLastCommandTimes.Insert( args[0], gpGlobals->curtime );
-		return true;
-	}
-	else if ( (gpGlobals->curtime - m_RateLimitLastCommandTimes[i]) < HL2MP_COMMAND_MAX_RATE )
-	{
-		// Too fast.
-		return false;
-	}
-	else
-	{
-		m_RateLimitLastCommandTimes[i] = gpGlobals->curtime;
-		return true;
 	}
 }
 
@@ -1181,44 +826,6 @@ void CHL2MP_Player::FlashlightTurnOff( void )
 	}
 }
 
-void CHL2MP_Player::Weapon_Drop( CBaseCombatWeapon *pWeapon, const Vector *pvecTarget, const Vector *pVelocity )
-{
-	//Drop a grenade if it's primed.
-	if ( GetActiveWeapon() )
-	{
-		CBaseCombatWeapon *pGrenade = Weapon_OwnsThisType("weapon_frag");
-
-		if ( GetActiveWeapon() == pGrenade )
-		{
-			if ( ( m_nButtons & IN_ATTACK ) || (m_nButtons & IN_ATTACK2) )
-			{
-				DropPrimedFragGrenade( this, pGrenade );
-				return;
-			}
-		}
-	}
-
-	BaseClass::Weapon_Drop( pWeapon, pvecTarget, pVelocity );
-}
-
-
-void CHL2MP_Player::DetonateTripmines( void )
-{
-	CBaseEntity *pEntity = NULL;
-
-	while ((pEntity = gEntList.FindEntityByClassname( pEntity, "npc_satchel" )) != NULL)
-	{
-		CSatchelCharge *pSatchel = dynamic_cast<CSatchelCharge *>(pEntity);
-		if (pSatchel->m_bIsLive && pSatchel->GetThrower() == this )
-		{
-			g_EventQueue.AddEvent( pSatchel, "Explode", 0.20, this, this );
-		}
-	}
-
-	// Play sound for pressing the detonator
-	EmitSound( "Weapon_SLAM.SatchelDetonate" );
-}
-
 void CHL2MP_Player::Event_Killed( const CTakeDamageInfo &info )
 {
 	//update damage info with our accumulated physics force
@@ -1231,16 +838,12 @@ void CHL2MP_Player::Event_Killed( const CTakeDamageInfo &info )
 	// because we still want to transmit to the clients in our PVS.
 	CreateRagdollEntity();
 
-	DetonateTripmines();
-
 	BaseClass::Event_Killed( subinfo );
 
 	if ( info.GetDamageType() & DMG_DISSOLVE )
 	{
 		if ( m_hRagdoll )
-		{
 			m_hRagdoll->GetBaseAnimating()->Dissolve( NULL, gpGlobals->curtime, false, ENTITY_DISSOLVE_NORMAL );
-		}
 	}
 
 	CBaseEntity *pAttacker = info.GetAttacker();
@@ -1248,11 +851,8 @@ void CHL2MP_Player::Event_Killed( const CTakeDamageInfo &info )
 	if ( pAttacker )
 	{
 		int iScoreToAdd = 1;
-
 		if ( pAttacker == this )
-		{
 			iScoreToAdd = -1;
-		}
 
 		GetGlobalTeam( pAttacker->GetTeamNumber() )->AddScore( iScoreToAdd );
 	}
@@ -1267,10 +867,6 @@ void CHL2MP_Player::Event_Killed( const CTakeDamageInfo &info )
 
 int CHL2MP_Player::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 {
-	//return here if the player is in the respawn grace period vs. slams.
-	if ( gpGlobals->curtime < m_flSlamProtectTime &&  (inputInfo.GetDamageType() == DMG_BLAST ) )
-		return 0;
-
 	m_vecTotalBulletForce += inputInfo.GetDamageForce();
 	
 	gamestats->Event_PlayerDamage( this, inputInfo );
@@ -1282,32 +878,8 @@ void CHL2MP_Player::DeathSound( const CTakeDamageInfo &info )
 {
 	if ( m_hRagdoll && m_hRagdoll->GetBaseAnimating()->IsDissolving() )
 		 return;
-
-	char szStepSound[128];
-
-	Q_snprintf( szStepSound, sizeof( szStepSound ), "%s.Die", GetPlayerModelSoundPrefix() );
-
-	const char *pModelName = STRING( GetModelName() );
-
-	CSoundParameters params;
-	if ( GetParametersForSound( szStepSound, params, pModelName ) == false )
-		return;
-
-	Vector vecOrigin = GetAbsOrigin();
 	
-	CRecipientFilter filter;
-	filter.AddRecipientsByPAS( vecOrigin );
-
-	EmitSound_t ep;
-	ep.m_nChannel = params.channel;
-	ep.m_pSoundName = params.soundname;
-	ep.m_flVolume = params.volume;
-	ep.m_SoundLevel = params.soundlevel;
-	ep.m_nFlags = 0;
-	ep.m_nPitch = params.pitch;
-	ep.m_pOrigin = &vecOrigin;
-
-	EmitSound( filter, entindex(), ep );
+	BaseClass::DeathSound( info );
 }
 
 CBaseEntity* CHL2MP_Player::EntSelectSpawnPoint( void )
@@ -1316,26 +888,6 @@ CBaseEntity* CHL2MP_Player::EntSelectSpawnPoint( void )
 	CBaseEntity *pLastSpawnPoint = g_pLastSpawn;
 	edict_t		*player = edict();
 	const char *pSpawnpointName = "info_player_deathmatch";
-
-	if ( HL2MPRules()->IsTeamplay() == true )
-	{
-		if ( GetTeamNumber() == TEAM_COMBINE )
-		{
-			pSpawnpointName = "info_player_combine";
-			pLastSpawnPoint = g_pLastCombineSpawn;
-		}
-		else if ( GetTeamNumber() == TEAM_REBELS )
-		{
-			pSpawnpointName = "info_player_rebel";
-			pLastSpawnPoint = g_pLastRebelSpawn;
-		}
-
-		if ( gEntList.FindEntityByClassname( NULL, pSpawnpointName ) == NULL )
-		{
-			pSpawnpointName = "info_player_deathmatch";
-			pLastSpawnPoint = g_pLastSpawn;
-		}
-	}
 
 	pSpot = pLastSpawnPoint;
 	// Randomize the start spot
@@ -1390,109 +942,10 @@ CBaseEntity* CHL2MP_Player::EntSelectSpawnPoint( void )
 
 ReturnSpot:
 
-	if ( HL2MPRules()->IsTeamplay() == true )
-	{
-		if ( GetTeamNumber() == TEAM_COMBINE )
-		{
-			g_pLastCombineSpawn = pSpot;
-		}
-		else if ( GetTeamNumber() == TEAM_REBELS ) 
-		{
-			g_pLastRebelSpawn = pSpot;
-		}
-	}
-
 	g_pLastSpawn = pSpot;
-
-	m_flSlamProtectTime = gpGlobals->curtime + 0.5;
 
 	return pSpot;
 } 
-
-
-CON_COMMAND( timeleft, "prints the time remaining in the match" )
-{
-	CHL2MP_Player *pPlayer = ToHL2MPPlayer( UTIL_GetCommandClient() );
-
-	int iTimeRemaining = (int)HL2MPRules()->GetMapRemainingTime();
-    
-	if ( iTimeRemaining == 0 )
-	{
-		if ( pPlayer )
-		{
-			ClientPrint( pPlayer, HUD_PRINTTALK, "This game has no timelimit." );
-		}
-		else
-		{
-			Msg( "* No Time Limit *\n" );
-		}
-	}
-	else
-	{
-		int iMinutes, iSeconds;
-		iMinutes = iTimeRemaining / 60;
-		iSeconds = iTimeRemaining % 60;
-
-		char minutes[8];
-		char seconds[8];
-
-		Q_snprintf( minutes, sizeof(minutes), "%d", iMinutes );
-		Q_snprintf( seconds, sizeof(seconds), "%2.2d", iSeconds );
-
-		if ( pPlayer )
-		{
-			ClientPrint( pPlayer, HUD_PRINTTALK, "Time left in map: %s1:%s2", minutes, seconds );
-		}
-		else
-		{
-			Msg( "Time Remaining:  %s:%s\n", minutes, seconds );
-		}
-	}	
-}
-
-
-void CHL2MP_Player::Reset()
-{	
-	ResetDeathCount();
-	ResetFragCount();
-}
-
-bool CHL2MP_Player::IsReady()
-{
-	return m_bReady;
-}
-
-void CHL2MP_Player::SetReady( bool bReady )
-{
-	m_bReady = bReady;
-}
-
-void CHL2MP_Player::CheckChatText( char *p, int bufsize )
-{
-	//Look for escape sequences and replace
-
-	char *buf = new char[bufsize];
-	int pos = 0;
-
-	// Parse say text for escape sequences
-	for ( char *pSrc = p; pSrc != NULL && *pSrc != 0 && pos < bufsize-1; pSrc++ )
-	{
-		// copy each char across
-		buf[pos] = *pSrc;
-		pos++;
-	}
-
-	buf[pos] = '\0';
-
-	// copy buf back into p
-	Q_strncpy( p, buf, bufsize );
-
-	delete[] buf;	
-
-	const char *pReadyCheck = p;
-
-	HL2MPRules()->CheckChatForReadySignal( this, pReadyCheck );
-}
 
 void CHL2MP_Player::State_Transition( HL2MPPlayerState newState )
 {
@@ -1520,7 +973,6 @@ void CHL2MP_Player::State_Leave()
 	}
 }
 
-
 void CHL2MP_Player::State_PreThink()
 {
 	if ( m_pCurStateInfo && m_pCurStateInfo->pfnPreThink )
@@ -1528,7 +980,6 @@ void CHL2MP_Player::State_PreThink()
 		(this->*m_pCurStateInfo->pfnPreThink)();
 	}
 }
-
 
 CHL2MPPlayerStateInfo *CHL2MP_Player::State_LookupInfo( HL2MPPlayerState state )
 {
@@ -1614,16 +1065,4 @@ void CHL2MP_Player::State_PreThink_ACTIVE()
 {
 	//we don't really need to do anything here. 
 	//This state_prethink structure came over from CS:S and was doing an assert check that fails the way hl2dm handles death
-}
-
-//-----------------------------------------------------------------------------
-// Purpose: 
-//-----------------------------------------------------------------------------
-bool CHL2MP_Player::CanHearAndReadChatFrom( CBasePlayer *pPlayer )
-{
-	// can always hear the console unless we're ignoring all chat
-	if ( !pPlayer )
-		return false;
-
-	return true;
 }

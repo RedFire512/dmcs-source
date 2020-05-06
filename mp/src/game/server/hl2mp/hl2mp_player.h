@@ -11,7 +11,6 @@
 
 class CHL2MP_Player;
 
-#include "basemultiplayerplayer.h"
 #include "hl2_playerlocaldata.h"
 #include "hl2_player.h"
 #include "simtimer.h"
@@ -53,6 +52,7 @@ public:
 	DECLARE_DATADESC();
 
 	virtual void Precache( void );
+	virtual void InitialSpawn();
 	virtual void Spawn( void );
 	virtual void PostThink( void );
 	virtual void PreThink( void );
@@ -69,9 +69,6 @@ public:
 	virtual bool Weapon_Switch( CBaseCombatWeapon *pWeapon, int viewmodelindex = 0);
 	virtual bool BumpWeapon( CBaseCombatWeapon *pWeapon );
 	virtual void ChangeTeam( int iTeam );
-	virtual void PickupObject ( CBaseEntity *pObject, bool bLimitMassAndSize );
-	virtual void PlayStepSound( Vector &vecOrigin, surfacedata_t *psurface, float fvol, bool force );
-	virtual void Weapon_Drop( CBaseCombatWeapon *pWeapon, const Vector *pvecTarget = NULL, const Vector *pVelocity = NULL );
 	virtual void UpdateOnRemove( void );
 	virtual void DeathSound( const CTakeDamageInfo &info );
 	virtual CBaseEntity* EntSelectSpawnPoint( void );
@@ -79,11 +76,9 @@ public:
 	int FlashlightIsOn( void );
 	void FlashlightTurnOn( void );
 	void FlashlightTurnOff( void );
-	void	PrecacheFootStepSounds( void );
 	bool	ValidatePlayerModel( const char *pModel );
 
 	QAngle GetAnimEyeAngles( void ) { return m_angEyeAngles.Get(); }
-
 	Vector GetAttackSpread( CBaseCombatWeapon *pWeapon, CBaseEntity *pTarget = NULL );
 
 	void CheatImpulseCommands( int iImpulse );
@@ -95,24 +90,9 @@ public:
 
 	void ResetAnimation( void );
 	void SetPlayerModel( void );
-	void SetPlayerTeamModel( void );
-	Activity TranslateTeamActivity( Activity ActToTranslate );
 	
 	float GetNextModelChangeTime( void ) { return m_flNextModelChangeTime; }
-	float GetNextTeamChangeTime( void ) { return m_flNextTeamChangeTime; }
 	void  PickDefaultSpawnTeam( void );
-	void  SetupPlayerSoundsByModel( const char *pModelName );
-	const char *GetPlayerModelSoundPrefix( void );
-	int	  GetPlayerModelType( void ) { return m_iPlayerSoundType;	}
-	
-	void  DetonateTripmines( void );
-
-	void Reset();
-
-	bool IsReady();
-	void SetReady( bool bReady );
-
-	void CheckChatText( char *p, int bufsize );
 
 	void State_Transition( HL2MPPlayerState newState );
 	void State_Enter( HL2MPPlayerState newState );
@@ -125,44 +105,28 @@ public:
 	void State_Enter_OBSERVER_MODE();
 	void State_PreThink_OBSERVER_MODE();
 
-
 	virtual bool StartObserverMode( int mode );
 	virtual void StopObserverMode( void );
-
 
 	Vector m_vecTotalBulletForce;	//Accumulator for bullet force in a single frame
 
 	// Tracks our ragdoll entity.
 	CNetworkHandle( CBaseEntity, m_hRagdoll );	// networked entity handle 
-
-	virtual bool	CanHearAndReadChatFrom( CBasePlayer *pPlayer );
-
-		
+	
 private:
 
 	CNetworkQAngle( m_angEyeAngles );
 	CPlayerAnimState   m_PlayerAnimState;
 
 	int m_iLastWeaponFireUsercmd;
-	int m_iModelType;
 	CNetworkVar( int, m_iSpawnInterpCounter );
-	CNetworkVar( int, m_iPlayerSoundType );
 
 	float m_flNextModelChangeTime;
-	float m_flNextTeamChangeTime;
-
-	float m_flSlamProtectTime;	
 
 	HL2MPPlayerState m_iPlayerState;
 	CHL2MPPlayerStateInfo *m_pCurStateInfo;
 
-	bool ShouldRunRateLimitedCommand( const CCommand &args );
-
-	// This lets us rate limit the commands the players can execute so they don't overflow things like reliable buffers.
-	CUtlDict<float,int>	m_RateLimitLastCommandTimes;
-
     bool m_bEnterObserver;
-	bool m_bReady;
 };
 
 inline CHL2MP_Player *ToHL2MPPlayer( CBaseEntity *pEntity )

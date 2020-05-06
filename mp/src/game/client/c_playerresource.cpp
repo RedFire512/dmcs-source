@@ -66,8 +66,10 @@ C_PlayerResource::C_PlayerResource()
 	}
 
 #ifdef HL2MP
+#ifndef DMCS_DLL
 	m_Colors[TEAM_COMBINE] = COLOR_BLUE;
 	m_Colors[TEAM_REBELS] = COLOR_RED;
+#endif
 	m_Colors[TEAM_UNASSIGNED] = COLOR_YELLOW;
 #endif
 
