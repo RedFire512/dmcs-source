@@ -116,6 +116,7 @@ public:
 	virtual bool StartObserverMode( int mode );
 	virtual void StopObserverMode( void );
 
+	virtual bool	RunMimicCommand( CUserCmd& cmd );	// Used by bots
 
 	Vector m_vecTotalBulletForce;	//Accumulator for bullet force in a single frame
 

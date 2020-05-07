@@ -14,7 +14,7 @@ $Configuration
 {
 	$Compiler
 	{
-		$AdditionalIncludeDirectories	"$BASE;$SRCDIR\game\shared\hl2,.\hl2,.\hl2mp,$SRCDIR\game\shared\hl2mp;$SRCDIR\game\shared\Multiplayer"
+		$AdditionalIncludeDirectories	"$BASE;$SRCDIR\game\shared\hl2,.\hl2,.\hl2mp,$SRCDIR\game\shared\hl2mp;$SRCDIR\game\shared\Multiplayer,.\bots"
 		$PreprocessorDefinitions		"$BASE;HL2MP;DMCS_DLL;HL2_DLL"
 	}
 }
@@ -238,10 +238,18 @@ $Project "Server"
 			}
 		}
 
+		$Folder	"Bots"
+		{
+			$File	"bots\dmc_bot_combat.cpp"
+			$File	"bots\dmc_bot_navigation.cpp"
+			$File	"bots\bot_main.cpp"
+			$File	"bots\bot_main.h"
+			$File	"bots\dmc_bot.cpp"
+			$File	"bots\dmc_bot.h"
+		}
+
 		$Folder	"Deathmatch Classic Source"
 		{
-			$File	"hl2mp\hl2mp_bot_temp.cpp"
-			$File	"hl2mp\hl2mp_bot_temp.h"
 			$File	"hl2mp\hl2mp_client.cpp"
 			$File	"hl2mp\hl2mp_gameinterface.cpp"
 			$File	"hl2mp\hl2mp_player.cpp"

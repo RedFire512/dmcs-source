@@ -198,7 +198,6 @@ void CHL2MP_Player::GiveDefaultItems( void )
 {
 	EquipSuit();
 
-	CBasePlayer::GiveAmmo( 6, "Buckshot");
 	GiveNamedItem( "weapon_crowbar" );
 }
 
@@ -763,17 +762,6 @@ void CHL2MP_Player::Event_Killed( const CTakeDamageInfo &info )
 		if ( m_hRagdoll )
 			m_hRagdoll->GetBaseAnimating()->Dissolve( NULL, gpGlobals->curtime, false, ENTITY_DISSOLVE_NORMAL );
 	}
-
-	/*CBaseEntity *pAttacker = info.GetAttacker();
-
-	if ( pAttacker )
-	{
-		int iScoreToAdd = 1;
-		if ( pAttacker == this )
-			iScoreToAdd = -1;
-
-		GetGlobalTeam( pAttacker->GetTeamNumber() )->AddScore( iScoreToAdd );
-	}*/
 
 	FlashlightTurnOff();
 

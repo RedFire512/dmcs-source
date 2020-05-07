@@ -32,12 +32,9 @@
 	#include "voice_gamemgr.h"
 	#include "gameinterface.h"
 	#include "hltvdirector.h"
+	#include "bot_main.h"
 
-#ifdef DEBUG	
-	#include "hl2mp_bot_temp.h"
-#endif
-
-	extern void respawn(CBaseEntity *pEdict, bool fCopyCorpse);
+	extern void respawn( CBaseEntity *pEdict, bool fCopyCorpse );
 
 	extern bool FindInList( const char **pStrings, const char *pToFind );
 
@@ -690,6 +687,19 @@ float CHL2MPRules::GetMapRemainingTime()
 
 	return timeleft;
 }
+
+#ifdef GAME_DLL
+//-----------------------------------------------------------------------------
+// Purpose: The bots do their processing after physics simulation etc so their visibility checks don't recompute
+//			bone positions multiple times a frame.
+//-----------------------------------------------------------------------------
+void CHL2MPRules::EndGameFrame( void )
+{
+	Bot_RunAll();
+
+	BaseClass::EndGameFrame();
+}
+#endif
 
 //-----------------------------------------------------------------------------
 // Purpose: 

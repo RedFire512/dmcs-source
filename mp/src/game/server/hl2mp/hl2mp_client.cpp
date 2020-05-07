@@ -108,9 +108,6 @@ void ClientGamePrecache( void )
 	CBaseEntity::PrecacheModel( "models/gibs/agibs.mdl" );
 	CBaseEntity::PrecacheModel ("models/weapons/v_hands.mdl");
 
-	CBaseEntity::PrecacheScriptSound( "HUDQuickInfo.LowAmmo" );
-	CBaseEntity::PrecacheScriptSound( "HUDQuickInfo.LowHealth" );
-
 	CBaseEntity::PrecacheScriptSound( "FX_AntlionImpact.ShellImpact" );
 	CBaseEntity::PrecacheScriptSound( "Missile.ShotDown" );
 	CBaseEntity::PrecacheScriptSound( "Bullets.DefaultNearmiss" );
@@ -148,11 +145,6 @@ void GameStartFrame( void )
 		return;
 
 	gpGlobals->teamplay = false;
-
-#ifdef DEBUG
-	extern void Bot_RunAll();
-	Bot_RunAll();
-#endif
 }
 
 //=========================================================

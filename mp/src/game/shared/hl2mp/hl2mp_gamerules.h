@@ -83,7 +83,9 @@ public:
 	void	ManageObjectRelocation( void );
 	const char *GetChatFormat( bool bTeamOnly, CBasePlayer *pPlayer );
 
+	virtual void EndGameFrame();
 #endif
+
 	virtual void ClientDisconnected( edict_t *pClient );
 
 	bool CheckGameOver( void );
