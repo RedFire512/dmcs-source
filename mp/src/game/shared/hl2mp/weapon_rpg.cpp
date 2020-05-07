@@ -1255,8 +1255,8 @@ void CAPCMissile::ComputeActualDotPosition( CLaserDot *pLaserDot, Vector *pActua
 // RPG
 //=============================================================================
 
-LINK_ENTITY_TO_CLASS( weapon_rpg, CWeaponRPG );
-PRECACHE_WEAPON_REGISTER(weapon_rpg);
+LINK_ENTITY_TO_CLASS( weapon_rocketlauncher, CWeaponRPG );
+PRECACHE_WEAPON_REGISTER( weapon_rocketlauncher );
 
 IMPLEMENT_NETWORKCLASS_ALIASED( WeaponRPG, DT_WeaponRPG )
 
