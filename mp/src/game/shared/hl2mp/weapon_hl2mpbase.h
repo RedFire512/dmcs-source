@@ -62,18 +62,16 @@ public:
 	virtual void FallInit( void );
 	
 public:
-	#if defined( CLIENT_DLL )
-		
-		virtual bool	ShouldPredict();
-		virtual void	OnDataChanged( DataUpdateType_t type );
+#if defined( CLIENT_DLL )
+	
+	virtual bool	ShouldPredict();
+	virtual void	OnDataChanged( DataUpdateType_t type );
 
-		virtual bool	OnFireEvent( C_BaseViewModel *pViewModel, const Vector& origin, const QAngle& angles, int event, const char *options );
-
-	#else
-
-		virtual void	Spawn();
-
-	#endif
+	virtual void	AddViewmodelBob( CBaseViewModel *viewmodel, Vector &origin, QAngle &angles );
+	virtual	float	CalcViewmodelBob( void );
+#else
+	virtual void	Spawn();
+#endif
 
 	float		m_flPrevAnimTime;
 	float  m_flNextResetCheckTime;
@@ -88,6 +86,4 @@ private:
 	Vector m_vOriginalSpawnOrigin;
 	QAngle m_vOriginalSpawnAngles;
 };
-
-
 #endif // WEAPON_HL2MPBASE_H

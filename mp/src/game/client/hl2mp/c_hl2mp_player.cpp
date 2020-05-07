@@ -14,10 +14,11 @@
 #include "iviewrender_beams.h"			// flashlight beam
 #include "r_efx.h"
 #include "dlight.h"
+#include "iclientvehicle.h"
 
 // Don't alias here
 #if defined( CHL2MP_Player )
-#undef CHL2MP_Player	
+	#undef CHL2MP_Player	
 #endif
 
 LINK_ENTITY_TO_CLASS( player, C_HL2MP_Player );
@@ -33,6 +34,17 @@ BEGIN_PREDICTION_DATA( C_HL2MP_Player )
 END_PREDICTION_DATA()
 
 static ConVar cl_playermodel( "cl_playermodel", "none", FCVAR_USERINFO | FCVAR_ARCHIVE | FCVAR_SERVER_CAN_EXECUTE, "Default Player Model");
+ConVar cl_rollspeed( "cl_rollspeed", "300.0", FCVAR_USERINFO | FCVAR_ARCHIVE ); // 300.0
+ConVar cl_rollangle( "cl_rollangle", "0.65", FCVAR_USERINFO | FCVAR_ARCHIVE ); // 0.65
+ConVar cl_bobcycle( "cl_bobcycle", "0.8", FCVAR_USERINFO | FCVAR_ARCHIVE );
+ConVar cl_bob( "cl_bob", "0.01", FCVAR_USERINFO | FCVAR_ARCHIVE );
+ConVar cl_bobup( "cl_bobup", "0.5", FCVAR_USERINFO | FCVAR_ARCHIVE );
+ConVar cl_iyaw_cycle( "cl_iyaw_cycle", "2.0", FCVAR_USERINFO | FCVAR_ARCHIVE | FCVAR_DEVELOPMENTONLY );
+ConVar cl_iroll_cycle( "cl_iroll_cycle", "0.5", FCVAR_USERINFO | FCVAR_ARCHIVE | FCVAR_DEVELOPMENTONLY );
+ConVar cl_ipitch_cycle( "cl_ipitch_cycle", "1.0", FCVAR_USERINFO | FCVAR_ARCHIVE | FCVAR_DEVELOPMENTONLY );
+ConVar cl_iyaw_level( "cl_iyaw_level", "0.3", FCVAR_USERINFO | FCVAR_ARCHIVE | FCVAR_DEVELOPMENTONLY );
+ConVar cl_iroll_level( "cl_iroll_level", "0.1", FCVAR_USERINFO | FCVAR_ARCHIVE | FCVAR_DEVELOPMENTONLY );
+ConVar cl_ipitch_level( "cl_ipitch_level", "0.3", FCVAR_USERINFO | FCVAR_ARCHIVE | FCVAR_DEVELOPMENTONLY );
 
 void SpawnBlood (Vector vecSpot, const Vector &vecDir, int bloodColor, float flDamage);
 
@@ -543,47 +555,122 @@ C_BaseAnimating *C_HL2MP_Player::BecomeRagdollOnClient()
 	return NULL;
 }
 
-void C_HL2MP_Player::CalcView( Vector &eyeOrigin, QAngle &eyeAngles, float &zNear, float &zFar, float &fov )
+
+//-----------------------------------------------------------------------------
+// Purpose: HL1's view bob, roll and idle effects.
+//-----------------------------------------------------------------------------
+void C_HL2MP_Player::CalcVehicleView( IClientVehicle* pVehicle, Vector& eyeOrigin, QAngle& eyeAngles, float& zNear, float& zFar, float& fov )
 {
-	if ( m_lifeState != LIFE_ALIVE && !IsObserver() )
+	BaseClass::CalcVehicleView( pVehicle, eyeOrigin, eyeAngles, zNear, zFar, fov );
+
+	if ( pVehicle != nullptr )
 	{
-		Vector origin = EyePosition();			
-
-		IRagdoll *pRagdoll = GetRepresentativeRagdoll();
-
-		if ( pRagdoll )
+		if ( pVehicle->GetVehicleEnt() != nullptr )
 		{
-			origin = pRagdoll->GetRagdollOrigin();
-			origin.z += VEC_DEAD_VIEWHEIGHT_SCALED( this ).z; // look over ragdoll, not through
+			Vector Velocity;
+			pVehicle->GetVehicleEnt()->EstimateAbsVelocity( Velocity );
+
+			if ( Velocity.Length() == 0 )
+			{
+				IdleScale += gpGlobals->frametime * 0.05;
+				if ( IdleScale > 1.0 )
+					IdleScale = 1.0;
+			}
+			else
+			{
+				IdleScale -= gpGlobals->frametime;
+				if ( IdleScale < 0.0 )
+					IdleScale = 0.0;
+			}
+
+			CalcViewIdle( eyeAngles );
 		}
+	}
+}
 
-		BaseClass::CalcView( eyeOrigin, eyeAngles, zNear, zFar, fov );
+void C_HL2MP_Player::CalcPlayerView( Vector& eyeOrigin, QAngle& eyeAngles, float& fov )
+{
+	BaseClass::CalcPlayerView( eyeOrigin, eyeAngles, fov );
 
-		eyeOrigin = origin;
-		
-		Vector vForward; 
-		AngleVectors( eyeAngles, &vForward );
+	Vector Velocity;
+	EstimateAbsVelocity( Velocity );
 
-		VectorNormalize( vForward );
-		VectorMA( origin, -CHASE_CAM_DISTANCE_MAX, vForward, eyeOrigin );
+	if ( Velocity.Length() == 0 )
+	{
+		IdleScale += gpGlobals->frametime * 0.05;
+		if ( IdleScale > 1.0 )
+			IdleScale = 1.0;
+	}
+	else
+	{
+		IdleScale -= gpGlobals->frametime;
+		if ( IdleScale < 0.0 )
+			IdleScale = 0.0;
+	}
 
-		Vector WALL_MIN( -WALL_OFFSET, -WALL_OFFSET, -WALL_OFFSET );
-		Vector WALL_MAX( WALL_OFFSET, WALL_OFFSET, WALL_OFFSET );
+	CalcViewBob( eyeOrigin );
+	CalcViewIdle( eyeAngles );
+}
 
-		trace_t trace; // clip against world
-		C_BaseEntity::PushEnableAbsRecomputations( false ); // HACK don't recompute positions while doing RayTrace
-		UTIL_TraceHull( origin, eyeOrigin, WALL_MIN, WALL_MAX, MASK_SOLID_BRUSHONLY, this, COLLISION_GROUP_NONE, &trace );
-		C_BaseEntity::PopEnableAbsRecomputations();
+void C_HL2MP_Player::CalcViewRoll( QAngle& eyeAngles )
+{
+	if ( GetMoveType() == MOVETYPE_NOCLIP )
+		return;
 
-		if (trace.fraction < 1.0)
-		{
-			eyeOrigin = trace.endpos;
-		}
-		
+	float Side = CalcRoll( GetAbsAngles(), GetAbsVelocity(), cl_rollangle.GetFloat(), cl_rollspeed.GetFloat() ) * 4.0;
+	eyeAngles[ROLL] += Side;
+
+	if ( GetHealth() <= 0 )
+	{
+		eyeAngles[ROLL] = 80;
+		return;
+	}
+}
+
+void C_HL2MP_Player::CalcViewBob( Vector& eyeOrigin )
+{
+	if ( !IsAlive() )
+		return;
+
+	float Cycle;
+	Vector Velocity;
+
+	if ( GetGroundEntity() == nullptr || gpGlobals->curtime == BobLastTime )
+	{
+		eyeOrigin.z += ViewBob;
 		return;
 	}
 
-	BaseClass::CalcView( eyeOrigin, eyeAngles, zNear, zFar, fov );
+	BobLastTime = gpGlobals->curtime;
+	BobTime += gpGlobals->frametime;
+
+	Cycle = BobTime - (int)( BobTime / cl_bobcycle.GetFloat() ) * cl_bobcycle.GetFloat();
+	Cycle /= cl_bobcycle.GetFloat();
+
+	if ( Cycle < cl_bobup.GetFloat() )
+		Cycle = M_PI * Cycle / cl_bobup.GetFloat();
+	else
+		Cycle = M_PI + M_PI * ( Cycle - cl_bobup.GetFloat()) / (1.0 - cl_bobup.GetFloat() );
+
+	EstimateAbsVelocity( Velocity );
+	Velocity.z = 0;
+
+	ViewBob = sqrt( Velocity.x * Velocity.x + Velocity.y * Velocity.y ) * cl_bob.GetFloat();
+	ViewBob = ViewBob * 0.3 + ViewBob * 0.7 * sin(Cycle);
+	ViewBob = min( ViewBob, 4 );
+	ViewBob = max( ViewBob, -7 );
+
+	eyeOrigin.z += ViewBob;
+}
+
+void C_HL2MP_Player::CalcViewIdle( QAngle& eyeAngles )
+{
+	if ( !IsAlive() )
+		return;
+
+	eyeAngles[ROLL] += IdleScale * sin( gpGlobals->curtime * cl_iroll_cycle.GetFloat() ) * cl_iroll_level.GetFloat();
+	eyeAngles[PITCH] += IdleScale * sin( gpGlobals->curtime * cl_ipitch_cycle.GetFloat() ) * cl_ipitch_level.GetFloat();
+	eyeAngles[YAW] += IdleScale * sin( gpGlobals->curtime * cl_iyaw_cycle.GetFloat() ) * cl_iyaw_level.GetFloat();
 }
 
 IRagdoll* C_HL2MP_Player::GetRepresentativeRagdoll() const

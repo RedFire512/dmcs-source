@@ -10,83 +10,37 @@
 #include "takedamageinfo.h"
 #include "ammodef.h"
 #include "hl2mp_gamerules.h"
-
-
-#ifdef CLIENT_DLL
-extern IVModelInfoClient* modelinfo;
-#else
-extern IVModelInfo* modelinfo;
-#endif
-
-
-#if defined( CLIENT_DLL )
-
-	#include "vgui/ISurface.h"
-	#include "vgui_controls/Controls.h"
-	#include "c_hl2mp_player.h"
-	#include "hud_crosshair.h"
-
-#else
-
-	#include "hl2mp_player.h"
-	#include "vphysics/constraints.h"
-
-#endif
-
 #include "weapon_hl2mpbase.h"
 
+#if defined( CLIENT_DLL )
+	#include "c_hl2mp_player.h"
+#else
+	#include "hl2mp_player.h"
+	#include "vphysics/constraints.h"
+#endif
 
 // ----------------------------------------------------------------------------- //
 // Global functions.
 // ----------------------------------------------------------------------------- //
-
 bool IsAmmoType( int iAmmoType, const char *pAmmoName )
 {
 	return GetAmmoDef()->Index( pAmmoName ) == iAmmoType;
 }
 
-static const char * s_WeaponAliasInfo[] = 
-{
-	"none",	//	WEAPON_NONE = 0,
-
-	//Melee
-	"shotgun",	//WEAPON_AMERKNIFE,
-	
-	NULL,		// end of list marker
-};
-
-
 // ----------------------------------------------------------------------------- //
 // CWeaponHL2MPBase tables.
 // ----------------------------------------------------------------------------- //
-
 IMPLEMENT_NETWORKCLASS_ALIASED( WeaponHL2MPBase, DT_WeaponHL2MPBase )
 
 BEGIN_NETWORK_TABLE( CWeaponHL2MPBase, DT_WeaponHL2MPBase )
-
-#ifdef CLIENT_DLL
-  
-#else
-	// world weapon models have no aminations
-  //	SendPropExclude( "DT_AnimTimeMustBeFirst", "m_flAnimTime" ),
-//	SendPropExclude( "DT_BaseAnimating", "m_nSequence" ),
-//	SendPropExclude( "DT_LocalActiveWeaponData", "m_flTimeWeaponIdle" ),
-#endif
-	
 END_NETWORK_TABLE()
 
 BEGIN_PREDICTION_DATA( CWeaponHL2MPBase ) 
 END_PREDICTION_DATA()
 
-LINK_ENTITY_TO_CLASS( weapon_hl2mp_base, CWeaponHL2MPBase );
-
-
 #ifdef GAME_DLL
-
-	BEGIN_DATADESC( CWeaponHL2MPBase )
-
-	END_DATADESC()
-
+BEGIN_DATADESC( CWeaponHL2MPBase )
+END_DATADESC()
 #endif
 
 // ----------------------------------------------------------------------------- //
@@ -100,7 +54,6 @@ CWeaponHL2MPBase::CWeaponHL2MPBase()
 	m_flNextResetCheckTime = 0.0f;
 }
 
-
 bool CWeaponHL2MPBase::IsPredicted() const
 { 
 	return true;
@@ -110,21 +63,20 @@ void CWeaponHL2MPBase::WeaponSound( WeaponSound_t sound_type, float soundtime /*
 {
 #ifdef CLIENT_DLL
 
-		// If we have some sounds from the weapon classname.txt file, play a random one of them
-		const char *shootsound = GetWpnData().aShootSounds[ sound_type ]; 
-		if ( !shootsound || !shootsound[0] )
-			return;
+	// If we have some sounds from the weapon classname.txt file, play a random one of them
+	const char *shootsound = GetWpnData().aShootSounds[ sound_type ]; 
+	if ( !shootsound || !shootsound[0] )
+		return;
 
-		CBroadcastRecipientFilter filter; // this is client side only
-		if ( !te->CanPredict() )
-			return;
+	CBroadcastRecipientFilter filter; // this is client side only
+	if ( !te->CanPredict() )
+		return;
 				
-		CBaseEntity::EmitSound( filter, GetPlayerOwner()->entindex(), shootsound, &GetPlayerOwner()->GetAbsOrigin() ); 
+	CBaseEntity::EmitSound( filter, GetPlayerOwner()->entindex(), shootsound, &GetPlayerOwner()->GetAbsOrigin() ); 
 #else
-		BaseClass::WeaponSound( sound_type, soundtime );
+	BaseClass::WeaponSound( sound_type, soundtime );
 #endif
 }
-
 
 CBasePlayer* CWeaponHL2MPBase::GetPlayerOwner() const
 {
@@ -137,7 +89,7 @@ CHL2MP_Player* CWeaponHL2MPBase::GetHL2MPPlayerOwner() const
 }
 
 #ifdef CLIENT_DLL
-	
+
 void CWeaponHL2MPBase::OnDataChanged( DataUpdateType_t type )
 {
 	BaseClass::OnDataChanged( type );
@@ -145,7 +97,6 @@ void CWeaponHL2MPBase::OnDataChanged( DataUpdateType_t type )
 	if ( GetPredictable() && !ShouldPredict() )
 		ShutdownPredictable();
 }
-
 
 bool CWeaponHL2MPBase::ShouldPredict()
 {
@@ -155,9 +106,7 @@ bool CWeaponHL2MPBase::ShouldPredict()
 	return BaseClass::ShouldPredict();
 }
 
-
 #else
-	
 void CWeaponHL2MPBase::Spawn()
 {
 	BaseClass::Spawn();
@@ -274,12 +223,12 @@ const CHL2MPSWeaponInfo &CWeaponHL2MPBase::GetHL2MPWpnData() const
 	const FileWeaponInfo_t *pWeaponInfo = &GetWpnData();
 	const CHL2MPSWeaponInfo *pHL2MPInfo;
 
-	#ifdef _DEBUG
-		pHL2MPInfo = dynamic_cast< const CHL2MPSWeaponInfo* >( pWeaponInfo );
-		Assert( pHL2MPInfo );
-	#else
-		pHL2MPInfo = static_cast< const CHL2MPSWeaponInfo* >( pWeaponInfo );
-	#endif
+#ifdef _DEBUG
+	pHL2MPInfo = dynamic_cast< const CHL2MPSWeaponInfo* >( pWeaponInfo );
+	Assert( pHL2MPInfo );
+#else
+	pHL2MPInfo = static_cast< const CHL2MPSWeaponInfo* >( pWeaponInfo );
+#endif
 
 	return *pHL2MPInfo;
 }
@@ -295,15 +244,127 @@ void CWeaponHL2MPBase::FireBullets( const FireBulletsInfo_t &info )
 
 #if defined( CLIENT_DLL )
 
-#include "c_te_effect_dispatch.h"
 
-#define NUM_MUZZLE_FLASH_TYPES 4
+float	g_lateralBob = 0;
+float	g_verticalBob = 0;
 
-bool CWeaponHL2MPBase::OnFireEvent( C_BaseViewModel *pViewModel, const Vector& origin, const QAngle& angles, int event, const char *options )
+static ConVar	cl_bobcycle( "cl_bobcycle","0.8", FCVAR_CHEAT );
+static ConVar	cl_bob( "cl_bob","0.002", FCVAR_CHEAT );
+static ConVar	cl_bobup( "cl_bobup","0.5", FCVAR_CHEAT );
+
+//-----------------------------------------------------------------------------
+// Purpose:
+// Output : float
+//-----------------------------------------------------------------------------
+float CWeaponHL2MPBase::CalcViewmodelBob( void )
 {
-	return BaseClass::OnFireEvent( pViewModel, origin, angles, event, options );
+	static	float bobtime;
+	static	float lastbobtime;
+	static  float lastspeed;
+	float	cycle;
+
+	CBasePlayer *player = ToBasePlayer( GetOwner() );
+	//Assert( player );
+
+	//NOTENOTE: For now, let this cycle continue when in the air, because it snaps badly without it
+
+	if ( ( !gpGlobals->frametime ) ||
+			( player == NULL ) ||
+			( cl_bobcycle.GetFloat() <= 0.0f ) ||
+			( cl_bobup.GetFloat() <= 0.0f ) ||
+			( cl_bobup.GetFloat() >= 1.0f ) )
+	{
+		//NOTENOTE: We don't use this return value in our case (need to restructure the calculation function setup!)
+		return 0.0f;// just use old value
+	}
+
+	//Find the speed of the player
+	float speed = player->GetLocalVelocity().Length2D();
+	float flmaxSpeedDelta = max( 0.f, (gpGlobals->curtime - lastbobtime) * 320.0f );
+
+	// don't allow too big speed changes
+	speed = clamp( speed, lastspeed-flmaxSpeedDelta, lastspeed+flmaxSpeedDelta );
+	speed = clamp( speed, -320, 320 );
+
+	lastspeed = speed;
+
+	//FIXME: This maximum speed value must come from the server.
+	//		 MaxSpeed() is not sufficient for dealing with sprinting - jdw
+
+
+
+	float bob_offset = RemapVal( speed, 0, 320, 0.0f, 1.0f );
+
+	bobtime += ( gpGlobals->curtime - lastbobtime ) * bob_offset;
+	lastbobtime = gpGlobals->curtime;
+
+	//Calculate the vertical bob
+	cycle = bobtime - (int)(bobtime/cl_bobcycle.GetFloat())*cl_bobcycle.GetFloat();
+	cycle /= cl_bobcycle.GetFloat();
+
+	if ( cycle < cl_bobup.GetFloat() )
+	{
+		cycle = M_PI * cycle / cl_bobup.GetFloat();
+	}
+	else
+	{
+		cycle = M_PI + M_PI*(cycle-cl_bobup.GetFloat())/(1.0 - cl_bobup.GetFloat());
+	}
+
+	g_verticalBob = speed*0.005f;
+	g_verticalBob = g_verticalBob*0.3 + g_verticalBob*0.7*sin(cycle);
+
+	g_verticalBob = clamp( g_verticalBob, -7.0f, 4.0f );
+
+	//Calculate the lateral bob
+	cycle = bobtime - (int)(bobtime/cl_bobcycle.GetFloat()*2)*cl_bobcycle.GetFloat()*2;
+	cycle /= cl_bobcycle.GetFloat()*2;
+
+	if ( cycle < cl_bobup.GetFloat() )
+	{
+		cycle = M_PI * cycle / cl_bobup.GetFloat();
+	}
+	else
+	{
+		cycle = M_PI + M_PI*(cycle-cl_bobup.GetFloat())/(1.0 - cl_bobup.GetFloat());
+	}
+
+	g_lateralBob = speed*0.005f;
+	g_lateralBob = g_lateralBob*0.3 + g_lateralBob*0.7*sin(cycle);
+	g_lateralBob = clamp( g_lateralBob, -7.0f, 4.0f );
+
+	//NOTENOTE: We don't use this return value in our case (need to restructure the calculation function setup!)
+	return 0.0f;
+
 }
 
+//-----------------------------------------------------------------------------
+// Purpose:
+// Input  : &origin -
+//			&angles -
+//			viewmodelindex -
+//-----------------------------------------------------------------------------
+void CWeaponHL2MPBase::AddViewmodelBob( CBaseViewModel *viewmodel, Vector &origin, QAngle &angles )
+{
+	Vector	forward, right;
+	AngleVectors( angles, &forward, &right, NULL );
+
+	CalcViewmodelBob();
+
+	// Apply bob, but scaled down to 40%
+	VectorMA( origin, g_verticalBob * 0.4f, forward, origin );
+
+	// Z bob a bit more
+	origin[2] += g_verticalBob * 0.1f;
+
+	// bob the angles
+	angles[ ROLL ]	+= g_verticalBob * 0.5f;
+	angles[ PITCH ]	-= g_verticalBob * 0.4f;
+
+	angles[ YAW ]	-= g_lateralBob  * 0.3f;
+
+//	VectorMA( origin, g_lateralBob * 0.2f, right, origin );
+}
 
 void UTIL_ClipPunchAngleOffset( QAngle &in, const QAngle &punch, const QAngle &clip )
 {

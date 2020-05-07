@@ -60,7 +60,11 @@ public:
 	virtual void PreThink( void );
 	virtual void DoImpactEffect( trace_t &tr, int nDamageType );
 	IRagdoll* GetRepresentativeRagdoll() const;
-	virtual void CalcView( Vector &eyeOrigin, QAngle &eyeAngles, float &zNear, float &zFar, float &fov );
+	virtual void CalcVehicleView( IClientVehicle* pVehicle, Vector& eyeOrigin, QAngle& eyeAngles, float& zNear, float& zFar, float& fov);
+	virtual void CalcPlayerView( Vector& eyeOrigin, QAngle& eyeAngles, float& fov);
+	virtual void CalcViewRoll( QAngle& eyeAngles );
+	virtual void CalcViewBob( Vector& eyeOrigin );
+	virtual void CalcViewIdle( QAngle& eyeAngles );
 	virtual const QAngle& EyeAngles( void );
 
 	void	UpdateLookAt( void );
@@ -83,6 +87,11 @@ private:
 	CInterpolatedVar< QAngle >	m_iv_angEyeAngles;
 
 	EHANDLE	m_hRagdoll;
+
+	float ViewBob;
+	double BobTime;
+	float BobLastTime;
+	float IdleScale;
 
 	int	m_headYawPoseParam;
 	int	m_headPitchPoseParam;

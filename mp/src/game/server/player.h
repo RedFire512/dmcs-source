@@ -389,7 +389,7 @@ public:
 	// Handle view smoothing when going up stairs
 	void					SmoothViewOnStairs( Vector& eyeOrigin );
 	virtual float			CalcRoll (const QAngle& angles, const Vector& velocity, float rollangle, float rollspeed);
-	void					CalcViewRoll( QAngle& eyeAngles );
+	virtual void			CalcViewRoll(QAngle& eyeAngles);
 
 	virtual int				Save( ISave &save );
 	virtual int				Restore( IRestore &restore );
@@ -904,8 +904,8 @@ private:
 
 protected:
 
-	void					CalcPlayerView( Vector& eyeOrigin, QAngle& eyeAngles, float& fov );
-	void					CalcVehicleView( IServerVehicle *pVehicle, Vector& eyeOrigin, QAngle& eyeAngles, 	
+	virtual void			CalcPlayerView(Vector& eyeOrigin, QAngle& eyeAngles, float& fov);
+	virtual void			CalcVehicleView(IServerVehicle *pVehicle, Vector& eyeOrigin, QAngle& eyeAngles,
 								float& zNear, float& zFar, float& fov );
 	void					CalcObserverView( Vector& eyeOrigin, QAngle& eyeAngles, float& fov );
 	void					CalcViewModelView( const Vector& eyeOrigin, const QAngle& eyeAngles);
