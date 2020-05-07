@@ -735,6 +735,19 @@ void CHL2MP_Player::FlashlightTurnOff( void )
 
 void CHL2MP_Player::Event_Killed( const CTakeDamageInfo &info )
 {
+	// show killer in death cam mode
+	// chopped down version of SetObserverTarget without the team check
+	if( info.GetAttacker() && info.GetAttacker()->IsPlayer() )
+	{
+		// set new target
+		m_hObserverTarget.Set( info.GetAttacker() ); 
+
+		// reset fov to default
+		SetFOV( this, 0 );
+	}
+	else
+		m_hObserverTarget.Set( NULL );
+
 	//update damage info with our accumulated physics force
 	CTakeDamageInfo subinfo = info;
 	subinfo.SetDamageForce( m_vecTotalBulletForce );
