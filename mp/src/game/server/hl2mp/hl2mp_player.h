@@ -11,10 +11,12 @@
 
 class CHL2MP_Player;
 
+#include "basemultiplayerplayer.h"
 #include "hl2_playerlocaldata.h"
 #include "hl2_player.h"
 #include "simtimer.h"
 #include "soundenvelope.h"
+#include "hl2mp_playeranimstate.h"
 #include "hl2mp_player_shared.h"
 #include "hl2mp_gamerules.h"
 #include "utldict.h"
@@ -50,6 +52,11 @@ public:
 
 	DECLARE_SERVERCLASS();
 	DECLARE_DATADESC();
+	DECLARE_PREDICTABLE();
+
+	// This passes the event to the client's and server's CHL2MPPlayerAnimState.
+	void			DoAnimationEvent( PlayerAnimEvent_t event, int nData = 0 );
+	void			SetupBones( matrix3x4_t *pBoneToWorld, int boneMask );
 
 	virtual void Precache( void );
 	virtual void InitialSpawn();
@@ -57,7 +64,6 @@ public:
 	virtual void PostThink( void );
 	virtual void PreThink( void );
 	virtual void PlayerDeathThink( void );
-	virtual void SetAnimation( PLAYER_ANIM playerAnim );
 	virtual bool HandleCommand_JoinTeam( int team );
 	virtual bool ClientCommand( const CCommand &args );
 	virtual void CreateViewModel( int viewmodelindex = 0 );
@@ -78,8 +84,8 @@ public:
 	void FlashlightTurnOff( void );
 	bool	ValidatePlayerModel( const char *pModel );
 
-	QAngle GetAnimEyeAngles( void ) { return m_angEyeAngles.Get(); }
 	Vector GetAttackSpread( CBaseCombatWeapon *pWeapon, CBaseEntity *pTarget = NULL );
+	virtual Vector GetAutoaimVector( float flDelta );
 
 	void CheatImpulseCommands( int iImpulse );
 	void CreateRagdollEntity( void );
@@ -88,7 +94,8 @@ public:
 
 	void NoteWeaponFired( void );
 
-	void ResetAnimation( void );
+	void SetAnimation( PLAYER_ANIM playerAnim );
+
 	void SetPlayerModel( void );
 	
 	float GetNextModelChangeTime( void ) { return m_flNextModelChangeTime; }
@@ -105,18 +112,25 @@ public:
 	void State_Enter_OBSERVER_MODE();
 	void State_PreThink_OBSERVER_MODE();
 
+
 	virtual bool StartObserverMode( int mode );
 	virtual void StopObserverMode( void );
+
 
 	Vector m_vecTotalBulletForce;	//Accumulator for bullet force in a single frame
 
 	// Tracks our ragdoll entity.
 	CNetworkHandle( CBaseEntity, m_hRagdoll );	// networked entity handle 
-	
+
+	// Player avoidance
+	virtual	bool		ShouldCollide( int collisionGroup, int contentsMask ) const;
+	void HL2MPPushawayThink(void);
+
 private:
 
+	CHL2MPPlayerAnimState *m_PlayerAnimState;
+
 	CNetworkQAngle( m_angEyeAngles );
-	CPlayerAnimState   m_PlayerAnimState;
 
 	int m_iLastWeaponFireUsercmd;
 	CNetworkVar( int, m_iSpawnInterpCounter );
@@ -126,7 +140,10 @@ private:
 	HL2MPPlayerState m_iPlayerState;
 	CHL2MPPlayerStateInfo *m_pCurStateInfo;
 
-    bool m_bEnterObserver;
+	bool m_bEnterObserver;
+
+	CNetworkVar( int, m_cycleLatch ); // Network the cycle to clients periodically
+	CountdownTimer m_cycleLatchTimer;
 };
 
 inline CHL2MP_Player *ToHL2MPPlayer( CBaseEntity *pEntity )

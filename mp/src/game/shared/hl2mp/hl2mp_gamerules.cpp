@@ -782,9 +782,7 @@ void CHL2MPRules::RestartGame()
 		m_flGameStartTime.GetForModify() = 0.0f;
 	}
 
-	CleanUpMap();
-	
-	// now respawn all players
+	// Pre Map Cleanup
 	for (int i = 1; i <= gpGlobals->maxClients; i++ )
 	{
 		CHL2MP_Player *pPlayer = (CHL2MP_Player*) UTIL_PlayerByIndex( i );
@@ -792,16 +790,46 @@ void CHL2MPRules::RestartGame()
 		if ( !pPlayer )
 			continue;
 
-		if ( pPlayer->GetActiveWeapon() )
+		//Tony; if they aren't a spectator, make sure they get cleaned up before entities are removed!
+		if ( pPlayer->GetTeamNumber() != TEAM_SPECTATOR )
 		{
-			pPlayer->GetActiveWeapon()->Holster();
+				// If they're in a vehicle, make sure they get out!
+				if ( pPlayer->IsInAVehicle() )
+					pPlayer->LeaveVehicle();
+
+				QAngle angles = pPlayer->GetLocalAngles();
+
+				angles.x = 0;
+				angles.z = 0;
+
+				pPlayer->SetLocalAngles( angles );
+				CBaseCombatWeapon *pWeapon = (CBaseCombatWeapon*)pPlayer->GetActiveWeapon();
+				if (pWeapon)
+				{
+					pPlayer->Weapon_Detach( pWeapon );
+					UTIL_Remove( pWeapon );
+				}
 		}
-		pPlayer->RemoveAllItems( true );
-		respawn( pPlayer, false );
+		pPlayer->RemoveAllItems(true);
+		pPlayer->ClearActiveWeapon();
 		pPlayer->ResetScores();
 	}
 
-	// Respawn entities (glass, doors, etc..)
+	CleanUpMap();
+	
+	// now that everything is cleaned up, respawn everyone.
+	for (int i = 1; i <= gpGlobals->maxClients; i++ )
+	{
+		CHL2MP_Player *pPlayer = (CHL2MP_Player*) UTIL_PlayerByIndex( i );
+
+		if ( !pPlayer )
+			continue;
+
+		//Tony; if they aren't a spectator, respawn them.
+		if ( pPlayer->GetTeamNumber() != TEAM_SPECTATOR )
+			pPlayer->Spawn();
+	}
+
 	m_flIntermissionEndTime = 0;
 	m_flRestartGameTime = 0.0;		
 	m_bCompleteReset = false;

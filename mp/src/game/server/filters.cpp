@@ -55,7 +55,14 @@ bool CBaseFilter::PassesDamageFilter(const CTakeDamageInfo &info)
 
 bool CBaseFilter::PassesDamageFilterImpl( const CTakeDamageInfo &info )
 {
-	return PassesFilterImpl( NULL, info.GetAttacker() );
+	//Tony; modified so it can check the inflictor or the attacker. We'll check the attacker first; which is normal if that fails, then check the inflictor.
+	bool bResult = false;
+	bResult = PassesFilterImpl( NULL, info.GetAttacker() );
+
+	if (!bResult && info.GetInflictor() != NULL)
+		bResult = PassesFilterImpl( NULL, info.GetInflictor() );
+	
+	return bResult;//PassesFilterImpl( NULL, info.GetAttacker() );
 }
 
 //-----------------------------------------------------------------------------
@@ -372,7 +379,8 @@ protected:
 
 	bool PassesDamageFilterImpl(const CTakeDamageInfo &info)
 	{
-	 	return info.GetDamageType() == m_iDamageType;
+		//Tony; these are bits remember? this is a fix!
+		return ((info.GetDamageType() & m_iDamageType) == m_iDamageType) ? true : false;
 	}
 
 	int m_iDamageType;

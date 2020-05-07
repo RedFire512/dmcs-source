@@ -221,8 +221,13 @@ KeyValues* ReadEncryptedKVFile( IFileSystem *filesystem, const char *szFilenameW
 
 			if (!f)
 			{
-				pKV->deleteThis();
-				return NULL;
+				//Not found yet? Try from "GAME"
+				f = filesystem->Open( szFullName, "rb", "GAME" );
+				if ( !f )
+				{
+					pKV->deleteThis();
+					return NULL;
+				}
 			}
 			// load file into a null-terminated buffer
 			int fileSize = filesystem->Size(f);

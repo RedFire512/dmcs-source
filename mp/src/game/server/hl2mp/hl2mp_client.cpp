@@ -54,17 +54,16 @@ void ClientPutInServer( edict_t *pEdict, const char *playername )
 {
 	// Allocate a CBaseTFPlayer for pev, and call spawn
 	CHL2MP_Player *pPlayer = CHL2MP_Player::CreatePlayer( "player", pEdict );
-	pPlayer->SetPlayerName( playername );
+	if( pPlayer )
+		pPlayer->SetPlayerName( playername );
 }
 
 
 void ClientActive( edict_t *pEdict, bool bLoadGame )
 {
-	// Can't load games in CS!
-	Assert( !bLoadGame );
-
 	CHL2MP_Player *pPlayer = ToHL2MPPlayer( CBaseEntity::Instance( pEdict ) );
-	FinishClientPutInServer( pPlayer );
+	if( pPlayer )
+		FinishClientPutInServer( pPlayer );
 }
 
 

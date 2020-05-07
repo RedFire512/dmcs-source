@@ -3897,18 +3897,33 @@ void C_BaseAnimating::FireEvent( const Vector& origin, const QAngle& angles, int
 
 	// Eject brass
 	case CL_EVENT_EJECTBRASS1:
-		if ( m_Attachments.Count() > 0 )
 		{
-			if ( MainViewOrigin().DistToSqr( GetAbsOrigin() ) < (256 * 256) )
+			// Check if we're a weapon, if we belong to the local player, and if the local player is in third person - if all are true, don't do a muzzleflash in this instance, because
+			// we're using the view models dispatch for smoothness.
+			if ( dynamic_cast< C_BaseCombatWeapon *>(this) != NULL )
 			{
-				Vector attachOrigin;
-				QAngle attachAngles; 
-				
-				if( GetAttachment( 2, attachOrigin, attachAngles ) )
+				C_BaseCombatWeapon *pWeapon = dynamic_cast< C_BaseCombatWeapon *>(this);
+				if ( pWeapon && pWeapon->GetOwner() == C_BasePlayer::GetLocalPlayer() && ::input->CAM_IsThirdPerson() )
+					break;
+			}
+			
+			if ( ( prediction->InPrediction() && !prediction->IsFirstTimePredicted() ) )
+				break;
+
+			if ( m_Attachments.Count() > 0 )
+			{
+				if ( MainViewOrigin().DistToSqr( GetAbsOrigin() ) < (256 * 256) )
 				{
-					tempents->EjectBrass( attachOrigin, attachAngles, GetAbsAngles(), atoi( options ) );
+					Vector attachOrigin;
+					QAngle attachAngles; 
+					
+					if( GetAttachment( 2, attachOrigin, attachAngles ) )
+					{
+						tempents->EjectBrass( attachOrigin, attachAngles, GetAbsAngles(), atoi( options ) );
+					}
 				}
 			}
+			break;
 		}
 		break;
 
@@ -3922,6 +3937,36 @@ void C_BaseAnimating::FireEvent( const Vector& origin, const QAngle& angles, int
 	case AE_NPC_MUZZLEFLASH:
 		{
 			// Send out the effect for an NPC
+#if defined ( HL2MP ) || defined ( SDK_DLL ) // works for the modified CSS weapons included in the new template sdk.
+			// HL2MP - Make third person muzzleflashes as reliable as the first person ones
+			// while in third person the view model dispatches the muzzleflash event - note: the weapon models dispatch them too, but not frequently.
+			if ( IsViewModel() )
+			{
+				C_BasePlayer *pPlayer = ToBasePlayer( dynamic_cast<C_BaseViewModel *>(this)->GetOwner() );
+				if ( pPlayer && pPlayer == C_BasePlayer::GetLocalPlayer())
+				{
+					if ( ::input->CAM_IsThirdPerson() )
+					{
+						// Dispatch on the weapon - the player model doesn't have the attachments in hl2mp.
+						C_BaseCombatWeapon *pWeapon = pPlayer->GetActiveWeapon();
+						if ( !pWeapon )
+							break;
+						pWeapon->DispatchMuzzleEffect( options, false );
+						break;
+					}
+				}
+			}
+
+			// Check if we're a weapon, if we belong to the local player, and if the local player is in third person - if all are true, don't do a muzzleflash in this instance, because
+			// we're using the view models dispatch for smoothness.
+			if ( dynamic_cast< C_BaseCombatWeapon *>(this) != NULL )
+			{
+				C_BaseCombatWeapon *pWeapon = dynamic_cast< C_BaseCombatWeapon *>(this);
+				if ( pWeapon && pWeapon->GetOwner() == C_BasePlayer::GetLocalPlayer() && ::input->CAM_IsThirdPerson() )
+					break;
+			}
+			
+#endif
 			DispatchMuzzleEffect( options, false );
 			break;
 		}

@@ -9,6 +9,10 @@
 #include "utlrbtree.h"
 #include "hl2_shareddefs.h"
 
+#ifdef HL2MP
+#include "hl2mp_gamerules.h"
+#endif
+
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
@@ -283,7 +287,7 @@ bool CHL2GameMovement::ContinueForcedMove()
 //-----------------------------------------------------------------------------
 bool CHL2GameMovement::OnLadder( trace_t &trace )
 {
-	return ( GetLadder() != NULL ) ? true : false;
+	return ( GetLadder() != NULL ) ? true : BaseClass::OnLadder( trace );
 }
 
 //-----------------------------------------------------------------------------
@@ -524,9 +528,9 @@ void CHL2GameMovement::FullLadderMove()
 {
 #if !defined( CLIENT_DLL )
 	CFuncLadder *ladder = GetLadder();
-	Assert( ladder );
 	if ( !ladder )
 	{
+		BaseClass::FullLadderMove();
 		return;
 	}
 
@@ -887,7 +891,7 @@ bool CHL2GameMovement::LadderMove( void )
 	if ( player->GetMoveType() == MOVETYPE_NOCLIP )
 	{
 		SetLadder( NULL );
-		return false;
+		return BaseClass::LadderMove();
 	}
 
 	// If being forced to mount/dismount continue to act like we are on the ladder
@@ -961,14 +965,14 @@ bool CHL2GameMovement::LadderMove( void )
 		LookingAtLadder( bestLadder ) &&
 		CheckLadderAutoMount( bestLadder, bestOrigin ) )
 	{
-		return true;
+		return BaseClass::LadderMove();
 	}
 
 	// Reassign the ladder
 	ladder = GetLadder();
 	if ( !ladder )
 	{
-		return false;
+		return BaseClass::LadderMove();
 	}
 
 	// Don't play the deny sound
@@ -1029,10 +1033,9 @@ bool CHL2GameMovement::LadderMove( void )
 		VectorScale( jumpDir, MAX_CLIMB_SPEED, mv->m_vecVelocity );
 		// Tracker 13558:  Don't add any extra z velocity if facing downward at all
 		if ( m_vecForward.z >= 0.0f )
-		{
 			mv->m_vecVelocity.z = mv->m_vecVelocity.z + 50;
-		}
-		return false;
+
+		return BaseClass::LadderMove();
 	}
 
 	if ( forwardSpeed != 0 || rightSpeed != 0 )
@@ -1064,7 +1067,7 @@ bool CHL2GameMovement::LadderMove( void )
 			player->SetMoveType( MOVETYPE_WALK );
 			// Remove from ladder
 			SetLadder( NULL );
-			return false;
+			return BaseClass::LadderMove();
 		}
 
 		bool ishorizontal = fabs( topPosition.z - bottomPosition.z ) < 64.0f ? true : false;
@@ -1142,6 +1145,14 @@ bool CHL2GameMovement::CanAccelerate()
 	return true;
 }
 
+//-----------------------------------------------------------------------------
+// Purpose: Allow bots etc to use slightly different solid masks
+//-----------------------------------------------------------------------------
+unsigned int CHL2GameMovement::PlayerSolidMask( bool brushOnly )
+{
+	int mask = 0;
+	return ( mask | BaseClass::PlayerSolidMask( brushOnly ) );
+}
 
 #ifndef PORTAL	// Portal inherits from this but needs to declare it's own global interface
 	// Expose our interface.

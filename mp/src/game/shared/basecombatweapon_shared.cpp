@@ -1109,7 +1109,7 @@ void CBaseCombatWeapon::SendViewModelAnim( int nSequence )
 	if ( !IsPredicted() )
 		return;
 #endif
-	
+
 	if ( nSequence < 0 )
 		return;
 
@@ -1117,7 +1117,7 @@ void CBaseCombatWeapon::SendViewModelAnim( int nSequence )
 	
 	if ( pOwner == NULL )
 		return;
-	
+
 	CBaseViewModel *vm = pOwner->GetViewModel( m_nViewModelIndex, false );
 	
 	if ( vm == NULL )

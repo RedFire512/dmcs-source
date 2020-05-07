@@ -3,14 +3,13 @@
 // Purpose: 
 //
 //=============================================================================//
-
-#include "weapon_hl2mpbase.h"
-
 #ifndef BASEHLCOMBATWEAPON_H
 #define BASEHLCOMBATWEAPON_H
 #ifdef _WIN32
 #pragma once
 #endif
+
+#include "weapon_hl2mpbasehlmpcombatweapon.h"
 
 #if defined( CLIENT_DLL )
 	#define CHL2MPMachineGun C_HL2MPMachineGun
@@ -19,7 +18,7 @@
 //=========================================================
 // Machine gun base class
 //=========================================================
-class CHL2MPMachineGun : public CWeaponHL2MPBase
+class CHL2MPMachineGun : public CBaseHL2MPCombatWeapon
 {
 public:
 	DECLARE_CLASS( CHL2MPMachineGun, CWeaponHL2MPBase );

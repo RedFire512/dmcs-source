@@ -82,6 +82,9 @@ public:
 	fogparams_t			m_fog;
 	// audio environment
 	CNetworkVarEmbedded( audioparams_t, m_audio );
+	
+	//Tony; added so tonemap controller can work in multiplayer with inputs.
+	CNetworkVarEmbedded( tonemap_params_t, m_TonemapParams );
 
 	CNetworkVar( bool, m_bSlowMovement );
 };
