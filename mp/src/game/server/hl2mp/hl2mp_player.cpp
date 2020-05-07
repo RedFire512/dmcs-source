@@ -191,13 +191,16 @@ void CHL2MP_Player::GiveAllItems( void )
 
 	GiveNamedItem( "weapon_crowbar" );
 	GiveNamedItem( "weapon_shotgun" );
-	GiveNamedItem( "weapon_rpg" );	
+	GiveNamedItem( "weapon_rocketlauncher" );	
 }
 
 void CHL2MP_Player::GiveDefaultItems( void )
 {
 	EquipSuit();
 
+	CBasePlayer::GiveAmmo( 10,	"Buckshot");
+
+	GiveNamedItem( "weapon_shotgun" );
 	GiveNamedItem( "weapon_crowbar" );
 }
 
