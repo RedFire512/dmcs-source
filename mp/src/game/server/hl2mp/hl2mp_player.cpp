@@ -764,7 +764,7 @@ void CHL2MP_Player::Event_Killed( const CTakeDamageInfo &info )
 			m_hRagdoll->GetBaseAnimating()->Dissolve( NULL, gpGlobals->curtime, false, ENTITY_DISSOLVE_NORMAL );
 	}
 
-	CBaseEntity *pAttacker = info.GetAttacker();
+	/*CBaseEntity *pAttacker = info.GetAttacker();
 
 	if ( pAttacker )
 	{
@@ -773,7 +773,7 @@ void CHL2MP_Player::Event_Killed( const CTakeDamageInfo &info )
 			iScoreToAdd = -1;
 
 		GetGlobalTeam( pAttacker->GetTeamNumber() )->AddScore( iScoreToAdd );
-	}
+	}*/
 
 	FlashlightTurnOff();
 
