@@ -214,7 +214,7 @@ Activity CBaseHL2MPBludgeonWeapon::ChooseIntersectionPointAndActivity( trace_t &
 	}
 
 
-	return ACT_VM_HITCENTER;
+	return GetPrimaryAttackActivity();
 }
 
 //-----------------------------------------------------------------------------
@@ -295,7 +295,7 @@ void CBaseHL2MPBludgeonWeapon::Swing( int bIsSecondary )
 
 	Vector swingEnd = swingStart + forward * GetRange();
 	UTIL_TraceLine( swingStart, swingEnd, MASK_SHOT_HULL, pOwner, COLLISION_GROUP_NONE, &traceHit );
-	Activity nHitActivity = ACT_VM_HITCENTER;
+	Activity nHitActivity = GetPrimaryAttackActivity();
 
 #ifndef CLIENT_DLL
 	// Like bullets, bludgeon traces have to trace against triggers.
@@ -338,7 +338,7 @@ void CBaseHL2MPBludgeonWeapon::Swing( int bIsSecondary )
 	// -------------------------
 	if ( traceHit.fraction == 1.0f )
 	{
-		nHitActivity = bIsSecondary ? ACT_VM_MISSCENTER2 : ACT_VM_MISSCENTER;
+		nHitActivity = bIsSecondary ? GetMissSecondaryAttackActivity() : GetMissPrimaryAttackActivity();
 
 		// We want to test the first swing again
 		Vector testEnd = swingStart + forward * GetRange();

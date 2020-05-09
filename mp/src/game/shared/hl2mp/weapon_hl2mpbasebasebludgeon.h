@@ -44,8 +44,10 @@ public:
 	virtual void	ItemPostFrame( void );
 
 	//Functions to select animation sequences 
-	virtual Activity	GetPrimaryAttackActivity( void )	{	return	ACT_VM_HITCENTER;	}
-	virtual Activity	GetSecondaryAttackActivity( void )	{	return	ACT_VM_HITCENTER2;	}
+	virtual Activity	GetPrimaryAttackActivity( void )	{ return ACT_VM_HITCENTER; }
+	virtual Activity	GetSecondaryAttackActivity( void )	{ return ACT_VM_HITCENTER2; }
+	virtual Activity	GetMissPrimaryAttackActivity( void )	{ return ACT_VM_MISSCENTER; }
+	virtual Activity	GetMissSecondaryAttackActivity( void )	{ return ACT_VM_MISSCENTER2; }
 
 	virtual	float	GetFireRate( void )								{	return	0.2f;	}
 	virtual float	GetRange( void )								{	return	32.0f;	}

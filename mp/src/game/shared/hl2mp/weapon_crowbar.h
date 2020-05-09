@@ -10,15 +10,11 @@
 //
 // $NoKeywords: $
 //=============================================================================//
-
 #ifndef HL2MP_WEAPON_CROWBAR_H
 #define HL2MP_WEAPON_CROWBAR_H
 #pragma once
 
-
-#include "weapon_hl2mpbasehlmpcombatweapon.h"
 #include "weapon_hl2mpbasebasebludgeon.h"
-
 
 #ifdef CLIENT_DLL
 #define CWeaponCrowbar C_WeaponCrowbar
@@ -44,10 +40,13 @@ public:
 
 	void		AddViewKick( void );
 	float		GetDamageForActivity( Activity hitActivity );
-	void		SecondaryAttack( void )	{	return;	}
+	void		SecondaryAttack( void )	{ return; }
 
-	void		Drop( const Vector &vecVelocity );
-
+	//Functions to select animation sequences 
+	virtual Activity	GetPrimaryAttackActivity( void )	{ return ACT_VM_PRIMARYATTACK; }
+	virtual Activity	GetSecondaryAttackActivity( void )	{ return ACT_VM_PRIMARYATTACK; }
+	virtual Activity	GetMissPrimaryAttackActivity( void )	{ return ACT_VM_PRIMARYATTACK; }
+	virtual Activity	GetMissSecondaryAttackActivity( void )	{ return ACT_VM_PRIMARYATTACK; }
 
 	// Animation event
 #ifndef CLIENT_DLL
@@ -56,12 +55,8 @@ public:
 	int WeaponMeleeAttack1Condition( float flDot, float flDist );
 #endif
 
-	CWeaponCrowbar( const CWeaponCrowbar & );
-
-private:
-		
+	CWeaponCrowbar( const CWeaponCrowbar & );	
 };
-
 
 #endif // HL2MP_WEAPON_CROWBAR_H
 

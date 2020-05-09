@@ -62,8 +62,8 @@ END_NETWORK_TABLE()
 BEGIN_PREDICTION_DATA( CWeaponGrenadeLauncher )
 END_PREDICTION_DATA()
 
-LINK_ENTITY_TO_CLASS( weapon_smg1, CWeaponGrenadeLauncher );
-PRECACHE_WEAPON_REGISTER( weapon_smg1 );
+LINK_ENTITY_TO_CLASS( weapon_grenadelauncher, CWeaponGrenadeLauncher );
+PRECACHE_WEAPON_REGISTER( weapon_grenadelauncher );
 
 acttable_t	CWeaponGrenadeLauncher::m_acttable[] = 
 {

@@ -287,6 +287,32 @@ int C_HL2MP_Player::DrawModel( int flags )
 }
 
 //-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+void C_HL2MP_Player::ProcessMuzzleFlashEvent()
+{
+	//FIXME: We should really use a named attachment for this
+	if ( m_Attachments.Count() > 0 )
+	{
+		Vector vAttachment, vAng;
+		QAngle angles;
+
+		GetAttachment( 1, vAttachment, angles ); // set 1 instead "attachment"
+		AngleVectors( angles, &vAng );
+		vAttachment += vAng * 2;
+		
+		dlight_t *dl = effects->CL_AllocDlight ( index );
+		dl->origin = vAttachment;
+		dl->color.r = 252;
+		dl->color.g = 238;
+		dl->color.b = 128;
+		dl->die = gpGlobals->curtime + 0.05f;
+		dl->radius = random->RandomFloat( 245.0f, 256.0f );
+		dl->decay = 512.0f;
+	}
+}
+
+//-----------------------------------------------------------------------------
 // Should this object receive shadows?
 //-----------------------------------------------------------------------------
 bool C_HL2MP_Player::ShouldReceiveProjectedTextures( int flags )

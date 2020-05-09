@@ -204,18 +204,6 @@ int CWeaponCrowbar::WeaponMeleeAttack1Condition( float flDot, float flDist )
 
 #endif
 
-
-
-//-----------------------------------------------------------------------------
-// Purpose: 
-//-----------------------------------------------------------------------------
-void CWeaponCrowbar::Drop( const Vector &vecVelocity )
-{
-#ifndef CLIENT_DLL
-	UTIL_Remove( this );
-#endif
-}
-
 float CWeaponCrowbar::GetRange( void )
 {
 	return	CROWBAR_RANGE;	
@@ -225,5 +213,3 @@ float CWeaponCrowbar::GetFireRate( void )
 {
 	return	CROWBAR_REFIRE;	
 }
-
-

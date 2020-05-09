@@ -52,7 +52,7 @@ ConVar cl_wpn_sway_scale( "cl_wpn_sway_scale", "1.0", FCVAR_CLIENTDLL|FCVAR_CHEA
 void CPredictedViewModel::CalcViewModelLag( Vector& origin, QAngle& angles, QAngle& original_angles )
 {
 #ifdef CLIENT_DLL
-#ifdef DMCS_DLL
+#if 0
 	//DM- take care of prediction first
 	if ( prediction->InPrediction() && !prediction->IsFirstTimePredicted() )
 	{

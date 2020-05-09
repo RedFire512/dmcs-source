@@ -611,9 +611,15 @@ private:
 	float							m_flLastBoneSetupTime;
 	CJiggleBones					*m_pJiggleBones;
 
+#ifdef DMCS_DLL
+public:
+#endif
 	// Calculated attachment points
 	CUtlVector<CAttachmentData>		m_Attachments;
 
+#ifdef DMCS_DLL
+private:
+#endif
 	bool							SetupBones_AttachmentHelper( CStudioHdr *pStudioHdr );
 
 	EHANDLE							m_hLightingOrigin;

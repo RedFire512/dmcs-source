@@ -59,6 +59,8 @@ public:
 	virtual int DrawModel( int flags );
 	virtual void AddEntity( void );
 
+	virtual void ProcessMuzzleFlashEvent();	// This is called to do the actual muzzle flash effect.
+
 	Vector GetAttackSpread( CBaseCombatWeapon *pWeapon, CBaseEntity *pTarget = NULL );
 
 

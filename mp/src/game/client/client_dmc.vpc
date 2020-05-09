@@ -127,6 +127,7 @@ $Project "Client"
 			$Folder	"Weapons"
 			{
 				$File	"hl2mp\c_te_hl2mp_shotgun_shot.cpp"
+				$File	"dmc\c_projectile_rocket.cpp"
 				$File	"$SRCDIR\game\shared\hl2mp\weapon_crowbar.cpp"
 				$File	"$SRCDIR\game\shared\hl2mp\weapon_shotgun.cpp"
 				$File	"$SRCDIR\game\shared\hl2mp\weapon_shotgun.h"
