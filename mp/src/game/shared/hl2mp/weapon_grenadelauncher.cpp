@@ -159,17 +159,6 @@ void CWeaponGrenadeLauncher::PrimaryAttack( void )
 	CBaseGrenade *pGrenade = Fraggrenade_Create( vecSrc, vec3_angle, vecThrow, AngularImpulse( 600, random->RandomInt( -1200,1200 ),0 ), pPlayer, GRENADE_TIMER, false );
 	if ( pGrenade )
 	{
-		if ( pPlayer && pPlayer->m_lifeState != LIFE_ALIVE )
-		{
-			pPlayer->GetVelocity( &vecThrow, NULL );
-
-			IPhysicsObject *pPhysicsObject = pGrenade->VPhysicsGetObject();
-			if ( pPhysicsObject )
-			{
-				pPhysicsObject->SetVelocity( &vecThrow, NULL );
-			}
-		}
-		
 		pGrenade->SetDamage( GRENADE_DAMAGE );
 		pGrenade->SetDamageRadius( GRENADE_RADIUS );
 	}

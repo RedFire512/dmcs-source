@@ -278,6 +278,10 @@ CWeaponRocketLauncher::CWeaponRocketLauncher()
 void CWeaponRocketLauncher::Precache()
 {
 	BaseClass::Precache();
+
+#ifndef CLIENT_DLL
+	UTIL_PrecacheOther( "rpg_missile" );
+#endif
 }
 
 void CWeaponRocketLauncher::PrimaryAttack()
@@ -315,7 +319,16 @@ void CWeaponRocketLauncher::PrimaryAttack()
 
 void CWeaponRocketLauncher::FireRocket( void )
 {
-	Assert( !"Derived classes must implement this." );
+#ifndef CLIENT_DLL
+	CBasePlayer *pPlayer = GetPlayerOwner();
+
+#ifdef DBGFLAG_ASSERT
+	CProjectileRocket *pRocket = 
+#endif //DEBUG		
+		CProjectileRocket::Create( "rpg_missile", pPlayer->Weapon_ShootPosition(), pPlayer->EyeAngles(), pPlayer );
+
+	Assert( pRocket );
+#endif
 }
 
 void CWeaponRocketLauncher::DoFireEffects()

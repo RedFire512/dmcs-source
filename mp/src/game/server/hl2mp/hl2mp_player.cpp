@@ -172,6 +172,9 @@ void CHL2MP_Player::Precache( void )
 {
 	BaseClass::Precache();
 
+	PrecacheScriptSound( "Player.Jump" );
+	PrecacheScriptSound( "Player.JumpLanding" );
+
 	PrecacheModel ( "sprites/glow01.vmt" );
 
 	//Precache Player models

@@ -1146,6 +1146,39 @@ bool CHL2GameMovement::CanAccelerate()
 }
 
 //-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+bool CHL2GameMovement::CheckJumpButton( void )
+{
+	// make the jump sound unless we aren't the spy
+	CPASFilter filter( player->GetAbsOrigin() );
+	filter.UsePredictionRules();
+	player->EmitSound( filter, player->entindex(), "Player.Jump" );	
+
+	return BaseClass::CheckJumpButton();
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+void CHL2GameMovement::CheckFalling( void )
+{
+	// if we landed on the ground
+	if ( player->GetGroundEntity() != NULL && !IsDead() )
+	{
+		if ( player->m_Local.m_flFallVelocity >= PLAYER_FALL_PUNCH_THRESHOLD )
+		{
+
+			CPASFilter filter( player->GetAbsOrigin() );
+			filter.UsePredictionRules();
+			player->EmitSound( filter, player->entindex(), "Player.JumpLanding" );
+		}
+	}
+
+	BaseClass::CheckFalling();
+}
+
+//-----------------------------------------------------------------------------
 // Purpose: Allow bots etc to use slightly different solid masks
 //-----------------------------------------------------------------------------
 unsigned int CHL2GameMovement::PlayerSolidMask( bool brushOnly )
