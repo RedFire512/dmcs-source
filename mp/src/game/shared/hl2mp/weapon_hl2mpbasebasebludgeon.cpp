@@ -44,7 +44,6 @@ static const Vector g_bludgeonMaxs(BLUDGEON_HULL_DIM,BLUDGEON_HULL_DIM,BLUDGEON_
 //-----------------------------------------------------------------------------
 CBaseHL2MPBludgeonWeapon::CBaseHL2MPBludgeonWeapon()
 {
-	m_bFiresUnderwater = true;
 }
 
 //-----------------------------------------------------------------------------
@@ -134,7 +133,7 @@ void CBaseHL2MPBludgeonWeapon::Hit( trace_t &traceHit, Activity nHitActivity )
 	CBasePlayer *pPlayer = ToBasePlayer( GetOwner() );
 	
 	//Do view kick
-//	AddViewKick();
+	AddViewKick();
 
 	CBaseEntity	*pHitEntity = traceHit.m_pEnt;
 

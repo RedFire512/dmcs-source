@@ -191,14 +191,19 @@ void CHL2MP_Player::GiveAllItems( void )
 
 	GiveNamedItem( "weapon_crowbar" );
 	GiveNamedItem( "weapon_shotgun" );
-	GiveNamedItem( "weapon_rocketlauncher" );	
+	GiveNamedItem( "weapon_rocketlauncher" );
+	GiveNamedItem( "weapon_supershotgun" );
+	GiveNamedItem( "weapon_nailgun" );
+	GiveNamedItem( "weapon_supernailgun" );
+	GiveNamedItem( "weapon_grenadelauncher" );
+//	GiveNamedItem( "weapon_lightning" );					
 }
 
 void CHL2MP_Player::GiveDefaultItems( void )
 {
 	EquipSuit();
 
-	CBasePlayer::GiveAmmo( 10,	"Buckshot");
+	CBasePlayer::GiveAmmo( 10,	"Buckshot" );
 
 	GiveNamedItem( "weapon_shotgun" );
 	GiveNamedItem( "weapon_crowbar" );

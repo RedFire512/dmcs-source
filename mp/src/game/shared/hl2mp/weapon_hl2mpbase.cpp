@@ -52,23 +52,32 @@ CWeaponHL2MPBase::CWeaponHL2MPBase()
 	AddSolidFlags( FSOLID_TRIGGER ); // Nothing collides with these but it gets touches.
 
 	m_flNextResetCheckTime = 0.0f;
+	m_bFiresUnderwater = true;
 }
 
-bool CWeaponHL2MPBase::IsPredicted() const
-{ 
-	return true;
-}
-
-//Tony; override for animation purposes.
-bool CWeaponHL2MPBase::Reload( void )
+//-----------------------------------------------------------------------------
+// Purpose: If the current weapon has more ammo, reload it. Otherwise, switch 
+//			to the next best weapon we've got. Returns true if it took any action.
+//-----------------------------------------------------------------------------
+bool CWeaponHL2MPBase::ReloadOrSwitchWeapons( void )
 {
-	bool fRet = DefaultReload( GetMaxClip1(), GetMaxClip2(), ACT_VM_RELOAD );
-	if ( fRet )
+	CBasePlayer *pOwner = ToBasePlayer( GetOwner() );
+	Assert( pOwner );
+
+	m_bFireOnEmpty = false;
+
+	// If we don't have any ammo, switch to the next best weapon
+	if ( !HasAnyAmmo() && m_flNextPrimaryAttack < gpGlobals->curtime && m_flNextSecondaryAttack < gpGlobals->curtime )
 	{
-//		WeaponSound( RELOAD );
-		ToHL2MPPlayer(GetOwner())->DoAnimationEvent( PLAYERANIMEVENT_RELOAD );
+		// weapon isn't useable, switch.
+		if ( ( (GetWeaponFlags() & ITEM_FLAG_NOAUTOSWITCHEMPTY) == false ) && ( g_pGameRules->SwitchToNextBestWeapon( pOwner, this ) ) )
+		{
+			m_flNextPrimaryAttack = gpGlobals->curtime + 0.3;
+			return true;
+		}
 	}
-	return fRet;
+
+	return false;
 }
 
 void CWeaponHL2MPBase::WeaponSound( WeaponSound_t sound_type, float soundtime /* = 0.0f */ )

@@ -106,12 +106,6 @@ void CHL2MPMachineGun::PrimaryAttack( void )
 
 	//Factor in the view kick
 	AddViewKick();
-	
-	if (!m_iClip1 && pPlayer->GetAmmoCount(m_iPrimaryAmmoType) <= 0)
-	{
-		// HEV suit - indicate out of ammo condition
-		pPlayer->SetSuitUpdate("!HEV_AMO0", FALSE, 0); 
-	}
 
 	SendWeaponAnim( GetPrimaryAttackActivity() );
 	ToHL2MPPlayer(pPlayer)->DoAnimationEvent( PLAYERANIMEVENT_ATTACK_PRIMARY );
@@ -184,8 +178,6 @@ bool CHL2MPMachineGun::Deploy( void )
 	return BaseClass::Deploy();
 }
 
-
-
 //-----------------------------------------------------------------------------
 // Purpose: Make enough sound events to fill the estimated think interval
 // returns: number of shots needed
@@ -217,9 +209,6 @@ int CHL2MPMachineGun::WeaponSoundRealtime( WeaponSound_t shoot_type )
 
 	return numBullets;
 }
-
-
-
 
 //-----------------------------------------------------------------------------
 // Purpose: 

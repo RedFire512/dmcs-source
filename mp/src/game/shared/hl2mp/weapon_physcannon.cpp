@@ -1286,8 +1286,10 @@ BEGIN_PREDICTION_DATA( CWeaponPhysCannon )
 END_PREDICTION_DATA()
 #endif
 
+#if 0
 LINK_ENTITY_TO_CLASS( weapon_physcannon, CWeaponPhysCannon );
 PRECACHE_WEAPON_REGISTER( weapon_physcannon );
+#endif
 
 acttable_t	CWeaponPhysCannon::m_acttable[] = 
 {

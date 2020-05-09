@@ -46,7 +46,7 @@ public:
 #endif
 
 	// All predicted weapons need to implement and return true
-	virtual bool	IsPredicted() const;
+	virtual bool	IsPredicted() const { return true; }
 
 	CBasePlayer* GetPlayerOwner() const;
 	CHL2MP_Player* GetHL2MPPlayerOwner() const;
@@ -55,10 +55,22 @@ public:
 	
 	CHL2MPSWeaponInfo const	&GetHL2MPWpnData() const;
 
-
 	virtual void FireBullets( const FireBulletsInfo_t &info );
 	virtual void FallInit( void );
-	virtual bool Reload();
+
+	// Reloading
+	// Reloading is gone from DM:CS
+	virtual	void CheckReload( void ) OVERRIDE {}
+	virtual void FinishReload( void ) OVERRIDE {}
+	virtual void AbortReload( void ) OVERRIDE {}
+	virtual bool DefaultReload( int iClipSize1, int iClipSize2, int iActivity ) { return false; }
+	virtual bool ReloadsSingly( void ) const  { return false; }
+	virtual bool Reload() OVERRIDE { return false; }
+	virtual bool CanReload( void ) OVERRIDE { return false; }
+	virtual bool ReloadOrSwitchWeapons( void ) OVERRIDE;
+	virtual bool ShouldDisplayReloadHUDHint() OVERRIDE{ return false; }
+	virtual void DisplayReloadHudHint() OVERRIDE{}
+	virtual void RescindReloadHudHint() OVERRIDE {}
 	
 public:
 #if defined( CLIENT_DLL )

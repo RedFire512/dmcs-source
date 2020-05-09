@@ -1389,8 +1389,10 @@ END_DATADESC()
 IMPLEMENT_SERVERCLASS_ST(CWeaponRPG, DT_WeaponRPG)
 END_SEND_TABLE()
 
+#ifndef DMCS_DLL
 LINK_ENTITY_TO_CLASS( weapon_rpg, CWeaponRPG );
-PRECACHE_WEAPON_REGISTER(weapon_rpg);
+PRECACHE_WEAPON_REGISTER( weapon_rpg );
+#endif // !DMCS_DLL
 
 acttable_t	CWeaponRPG::m_acttable[] = 
 {
