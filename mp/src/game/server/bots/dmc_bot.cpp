@@ -14,8 +14,8 @@ ConVar bot_crouch( "bot_crouch", "0", FCVAR_CHEAT );
 ConVar bot_mimic_yaw_offset( "bot_mimic_yaw_offset", "180", FCVAR_CHEAT );
 ConVar bot_attack( "bot_attack", "0", FCVAR_CHEAT );
 ConVar bot_mimic_flip_pitch( "bot_mimic_flip_pitch", "0", FCVAR_CHEAT );
-ConVar bot_quota("bot_quota", "0", FCVAR_ARCHIVE|FCVAR_GAMEDLL, "Try to keep this many bots in the server");
-ConVar bot_reconnect("bot_reconnect", "0", FCVAR_CHEAT);
+ConVar bot_quota( "bot_quota", "0", FCVAR_ARCHIVE|FCVAR_GAMEDLL, "Try to keep this many bots in the server" );
+ConVar bot_reconnect( "bot_reconnect", "0", FCVAR_CHEAT );
 
 LINK_ENTITY_TO_CLASS( bot, CDMCBot );
 
@@ -256,8 +256,8 @@ void CDMCBot::BotThink()
 
 	RunPlayerMove( cmd, gpGlobals->frametime );
 
-	int m_iCanWeChat = random->RandomInt( 1, 90 );
-	if ( m_iCanWeChat == 30 )
+	int m_iCanWeChat = random->RandomInt( 1, 1000 );
+	if ( m_iCanWeChat == 500 )
 	{
 		void Bot_Say( CDMCBot *pBot );
 		Bot_Say( this );
