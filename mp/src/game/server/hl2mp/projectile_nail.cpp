@@ -6,7 +6,7 @@
 #include "cbase.h"
 #include "projectile_nail.h"
 
-#define NAILGUN_MODEL "models/nail.mdl"
+#define NAILGUN_MODEL "models/weapons/nail_projectile.mdl"
 
 LINK_ENTITY_TO_CLASS( projectile_nail, CProjectileNail );
 PRECACHE_REGISTER( projectile_nail );

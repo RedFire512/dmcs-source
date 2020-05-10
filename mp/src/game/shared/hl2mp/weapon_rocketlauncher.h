@@ -19,7 +19,8 @@
 
 #ifndef CLIENT_DLL
 class RocketTrail;
- 
+class CWeaponRocketLauncher;
+
 //###########################################################################
 //	>> CProjectileRocket ( missile launcher class is below this one! )
 //###########################################################################
@@ -41,6 +42,8 @@ public:
 
 	void SetupInitialTransmittedGrenadeVelocity( const Vector &velocity );
 
+	CHandle<CWeaponRocketLauncher> m_hOwner;
+
 protected:
 	virtual void DoExplosion( trace_t *pTrace );
 
@@ -61,26 +64,24 @@ private:
 	#define CWeaponRocketLauncher C_WeaponRocketLauncher
 #endif
 
-class CWeaponRocketLauncher : public CWeaponHL2MPBase
+class CWeaponRocketLauncher : public CBaseHL2MPCombatWeapon
 {
+	DECLARE_CLASS( CWeaponRocketLauncher, CBaseHL2MPCombatWeapon );
 public:
-	DECLARE_CLASS( CWeaponRocketLauncher, CWeaponHL2MPBase );
-	DECLARE_NETWORKCLASS(); 
+	DECLARE_DATADESC();
+	DECLARE_NETWORKCLASS();
 	DECLARE_PREDICTABLE();
 	DECLARE_ACTTABLE();
 
-	CWeaponRocketLauncher();
+	CWeaponRocketLauncher( void );
+	~CWeaponRocketLauncher();
 
-	virtual void PrimaryAttack();
-	virtual void WeaponIdle();
-
-	void DoFireEffects();
-	void Precache( void );
-
-	virtual	void FireRocket( void );
+	void	Precache( void );
+	void	PrimaryAttack( void );
+	void	NotifyRocketDied( void );
 
 private:
-	CWeaponRocketLauncher( const CWeaponRocketLauncher & );
+	CNetworkHandle( CBaseEntity, m_hMissile );
 };
 
 #endif // WEAPON_ROCKETLAUNCHER_H

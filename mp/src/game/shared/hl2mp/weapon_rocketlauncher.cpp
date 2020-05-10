@@ -13,6 +13,7 @@
 
 #ifndef CLIENT_DLL
 BEGIN_DATADESC( CProjectileRocket )
+	DEFINE_FIELD( m_hOwner, FIELD_EHANDLE ),
 	DEFINE_FUNCTION( RocketTouch ),
 	DEFINE_THINKFUNC( FlyThink ),
 END_DATADESC()
@@ -150,6 +151,9 @@ void CProjectileRocket::RocketTouch( CBaseEntity *pOther )
 	if ( pOther->GetCollisionGroup() == COLLISION_GROUP_WEAPON )
 		return;
 
+	if ( m_hOwner != NULL )
+		m_hOwner->NotifyRocketDied();
+
 	// if we hit the skybox, just disappear
 	const trace_t &tr = CBaseEntity::GetTouchTrace();
 
@@ -205,7 +209,6 @@ void CProjectileRocket::FlyThink( void )
 	SetNextThink( gpGlobals->curtime + 0.1f );
 }
 
-	
 //-----------------------------------------------------------------------------
 // Purpose: 
 //
@@ -241,112 +244,123 @@ void CProjectileRocket::SetupInitialTransmittedGrenadeVelocity( const Vector &ve
 
 #endif
 
-IMPLEMENT_NETWORKCLASS_ALIASED( WeaponRocketLauncher, DT_BaseRocketWeapon )
+LINK_ENTITY_TO_CLASS( weapon_rocketlauncher, CWeaponRocketLauncher );
+PRECACHE_WEAPON_REGISTER( weapon_rocketlauncher );
 
-BEGIN_NETWORK_TABLE( CWeaponRocketLauncher, DT_BaseRocketWeapon )
+IMPLEMENT_NETWORKCLASS_ALIASED( WeaponRocketLauncher, DT_WeaponRocketLauncher )
+
+BEGIN_DATADESC( CWeaponRocketLauncher )
+END_DATADESC()
+
+BEGIN_NETWORK_TABLE( CWeaponRocketLauncher, DT_WeaponRocketLauncher )
 END_NETWORK_TABLE()
+
 
 BEGIN_PREDICTION_DATA( CWeaponRocketLauncher )
 END_PREDICTION_DATA()
-
-LINK_ENTITY_TO_CLASS( weapon_rocketlauncher, CWeaponRocketLauncher );
-PRECACHE_WEAPON_REGISTER( weapon_rocketlauncher );
 
 acttable_t	CWeaponRocketLauncher::m_acttable[] =
 {
 	{ ACT_MP_STAND_IDLE,				ACT_HL2MP_IDLE_RPG,					false },
 	{ ACT_MP_CROUCH_IDLE,				ACT_HL2MP_IDLE_CROUCH_RPG,			false },
-
 	{ ACT_MP_RUN,						ACT_HL2MP_RUN_RPG,					false },
 	{ ACT_MP_CROUCHWALK,				ACT_HL2MP_WALK_CROUCH_RPG,			false },
-
 	{ ACT_MP_ATTACK_STAND_PRIMARYFIRE,	ACT_HL2MP_GESTURE_RANGE_ATTACK_RPG,	false },
 	{ ACT_MP_ATTACK_CROUCH_PRIMARYFIRE,	ACT_HL2MP_GESTURE_RANGE_ATTACK_RPG,	false },
-
 	{ ACT_MP_RELOAD_STAND,				ACT_HL2MP_GESTURE_RELOAD_RPG,		false },
 	{ ACT_MP_RELOAD_CROUCH,				ACT_HL2MP_GESTURE_RELOAD_RPG,		false },
-
 	{ ACT_MP_JUMP,						ACT_HL2MP_JUMP_RPG,					false },
 };
 
 IMPLEMENT_ACTTABLE( CWeaponRocketLauncher );
 
-CWeaponRocketLauncher::CWeaponRocketLauncher()
+//-----------------------------------------------------------------------------
+// Purpose: Constructor
+//-----------------------------------------------------------------------------
+CWeaponRocketLauncher::CWeaponRocketLauncher( void )
 {
 }
 
-void CWeaponRocketLauncher::Precache()
+//-----------------------------------------------------------------------------
+// Purpose: Destructor
+//-----------------------------------------------------------------------------
+CWeaponRocketLauncher::~CWeaponRocketLauncher()
 {
-	BaseClass::Precache();
+}
 
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+void CWeaponRocketLauncher::Precache( void )
+{
 #ifndef CLIENT_DLL
 	UTIL_PrecacheOther( "rpg_missile" );
 #endif
+
+	BaseClass::Precache();
 }
 
-void CWeaponRocketLauncher::PrimaryAttack()
+//-----------------------------------------------------------------------------
+// Purpose:
+//-----------------------------------------------------------------------------
+void CWeaponRocketLauncher::PrimaryAttack( void )
 {
-	CBasePlayer *pPlayer = ToBasePlayer( GetPlayerOwner() );
-	
-	// Out of ammo?
+	// Can't have an active missile out
+	if ( m_hMissile != NULL )
+		return;
+
+	// Can't be reloading
+	if ( GetActivity() == ACT_VM_RELOAD )
+		return;
+
 	if ( m_iClip1 <= 0 )
 	{
-		if (m_bFireOnEmpty)
-		{
-			WeaponSound( EMPTY );
-			m_flNextPrimaryAttack = gpGlobals->curtime + 0.2;
-		}
-
-		return;
+		WeaponSound( EMPTY );
+		m_flNextPrimaryAttack = gpGlobals->curtime + 0.2;
 	}
 
-	// player "shoot" animation
-	ToHL2MPPlayer( pPlayer )->DoAnimationEvent( PLAYERANIMEVENT_ATTACK_PRIMARY );
+	Vector vecOrigin;
+	Vector vecForward;
 
-	SendWeaponAnim( ACT_VM_PRIMARYATTACK );
-		
-	FireRocket();
-	DoFireEffects();
-
-	m_iClip1--; 
-
-	if ( m_iClip1 <= 0 && pPlayer->GetAmmoCount( GetPrimaryAmmoType() ) <= 0 )
-		Lower();
-
-	m_flNextPrimaryAttack = gpGlobals->curtime + SequenceDuration() + 0.5;
-	m_flTimeWeaponIdle = gpGlobals->curtime + SequenceDuration() + 0.5;	//length of the fire anim!
-}
-
-void CWeaponRocketLauncher::FireRocket( void )
-{
-#ifndef CLIENT_DLL
-	CBasePlayer *pPlayer = GetPlayerOwner();
-
-#ifdef DBGFLAG_ASSERT
-	CProjectileRocket *pRocket = 
-#endif //DEBUG		
-		CProjectileRocket::Create( "rpg_missile", pPlayer->Weapon_ShootPosition(), pPlayer->EyeAngles(), pPlayer );
-
-	Assert( pRocket );
-#endif
-}
-
-void CWeaponRocketLauncher::DoFireEffects()
-{
-	CBasePlayer *pPlayer = GetPlayerOwner();
+	CBasePlayer *pOwner = ToBasePlayer( GetOwner() );
 	
-	if ( pPlayer )
-		 pPlayer->DoMuzzleFlash();
-
-	//smoke etc
-}
-
-void CWeaponRocketLauncher::WeaponIdle()
-{
-	if ( m_flTimeWeaponIdle > gpGlobals->curtime )
+	if ( pOwner == NULL )
 		return;
 
-	SendWeaponAnim( ACT_VM_IDLE );
+	SendWeaponAnim( ACT_VM_PRIMARYATTACK );
+	WeaponSound( SINGLE );
 
-	m_flTimeWeaponIdle = gpGlobals->curtime + SequenceDuration();
+	pOwner->DoMuzzleFlash();
+
+	Vector	vForward, vRight, vUp;
+
+	pOwner->EyeVectors( &vForward, &vRight, &vUp );
+
+	Vector	muzzlePoint = pOwner->Weapon_ShootPosition() + vForward * 16.0f + vRight * 8.0f + vUp * -8.0f;
+
+#ifndef CLIENT_DLL
+	QAngle vecAngles;
+	VectorAngles( vForward, vecAngles );
+
+	CProjectileRocket * pMissile = CProjectileRocket::Create( "rpg_missile", muzzlePoint, vecAngles, pOwner );
+	if ( pMissile )
+	{
+		pMissile->m_hOwner = this;
+		pMissile->SetAbsVelocity( pMissile->GetAbsVelocity() + vForward * DotProduct( pOwner->GetAbsVelocity(), vForward ) );
+
+		m_hMissile = pMissile;
+	}
+#endif
+
+	pOwner->ViewPunch( QAngle( -5, 0, 0 ) );
+
+	m_iClip1--; 
+				
+	m_flNextPrimaryAttack = gpGlobals->curtime + 1.5;
+	SetWeaponIdleTime( 1.5 );
+}
+
+void CWeaponRocketLauncher::NotifyRocketDied( void )
+{
+	m_hMissile = NULL;
 }
