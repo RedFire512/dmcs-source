@@ -21,11 +21,12 @@
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
-//-----------------------------------------------------------------------------
-// Globals
-//-----------------------------------------------------------------------------
+
 vgui::HScheme g_hVGuiCombineScheme = 0;
 
+extern bool g_bRollingCredits;
+
+ConVar fov_desired( "fov_desired", "75", FCVAR_ARCHIVE | FCVAR_USERINFO, "Sets the base field-of-view.", true, 75.0, true, 90.0 );
 
 // Instance the singleton and expose the interface to it.
 IClientMode *GetClientModeNormal()
@@ -124,5 +125,10 @@ void ClientModeHL2MPNormal::Init()
 	}
 }
 
-
-
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+bool ClientModeHL2MPNormal::ShouldDrawCrosshair( void )
+{
+	return ( g_bRollingCredits == false );
+}

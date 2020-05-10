@@ -23,7 +23,6 @@ namespace vgui
 	typedef unsigned long HScheme;
 }
 
-
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
@@ -37,6 +36,7 @@ public:
 
 	virtual void	Init();
 	virtual int		GetDeathMessageStartHeight( void );
+	virtual bool	ShouldDrawCrosshair( void );
 };
 
 extern IClientMode *GetClientModeNormal();
