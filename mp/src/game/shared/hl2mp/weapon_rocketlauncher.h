@@ -76,6 +76,8 @@ public:
 	CWeaponRocketLauncher( void );
 	~CWeaponRocketLauncher();
 
+	virtual int GetWeaponID( void ) const { return WEAPON_ROCKETLAUNCHER; }
+
 	void	Precache( void );
 	void	PrimaryAttack( void );
 	void	NotifyRocketDied( void );

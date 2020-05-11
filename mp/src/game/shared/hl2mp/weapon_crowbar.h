@@ -35,18 +35,20 @@ public:
 
 	CWeaponCrowbar();
 
-	float		GetRange( void );
-	float		GetFireRate( void );
+	virtual int GetWeaponID( void ) const { return WEAPON_CROWBAR; }
 
-	void		AddViewKick( void );
-	float		GetDamageForActivity( Activity hitActivity );
-	void		SecondaryAttack( void )	{ return; }
+	float GetRange( void );
+	float GetFireRate( void );
+
+	void AddViewKick( void );
+	float GetDamageForActivity( Activity hitActivity );
+	void SecondaryAttack( void )	{ return; }
 
 	//Functions to select animation sequences 
-	virtual Activity	GetPrimaryAttackActivity( void )	{ return ACT_VM_PRIMARYATTACK; }
-	virtual Activity	GetSecondaryAttackActivity( void )	{ return ACT_VM_PRIMARYATTACK; }
-	virtual Activity	GetMissPrimaryAttackActivity( void )	{ return ACT_VM_PRIMARYATTACK; }
-	virtual Activity	GetMissSecondaryAttackActivity( void )	{ return ACT_VM_PRIMARYATTACK; }
+	virtual Activity	GetPrimaryAttackActivity( void ) { return ACT_VM_PRIMARYATTACK; }
+	virtual Activity	GetSecondaryAttackActivity( void ) { return ACT_VM_PRIMARYATTACK; }
+	virtual Activity	GetMissPrimaryAttackActivity( void ) { return ACT_VM_PRIMARYATTACK; }
+	virtual Activity	GetMissSecondaryAttackActivity( void ) { return ACT_VM_PRIMARYATTACK; }
 
 	// Animation event
 #ifndef CLIENT_DLL
@@ -59,4 +61,3 @@ public:
 };
 
 #endif // HL2MP_WEAPON_CROWBAR_H
-

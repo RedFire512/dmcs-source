@@ -62,7 +62,7 @@ public:
 	virtual int PlayerRelationship( CBaseEntity *pPlayer, CBaseEntity *pTarget ) { return GR_NOTTEAMMATE; }
 	virtual void GoToIntermission( void );
 	virtual void DeathNotice( CBasePlayer *pVictim, const CTakeDamageInfo &info );
-	virtual const char *GetGameDescription( void ) { return "Deathmatch Classic Source"; } 
+	virtual const char *GetGameDescription( void ) { return DMCS_GAME_DESCRIPTION; } 
 
 	// derive this function if you mod uses encrypted weapon info files
 	virtual const unsigned char *GetEncryptionKey( void ) { return (unsigned char *)"x9Ke0BY7"; }

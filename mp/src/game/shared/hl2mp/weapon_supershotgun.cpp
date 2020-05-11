@@ -24,6 +24,8 @@ public:
 
 	CWeaponSuperShotgun( void );
 
+	virtual int GetWeaponID( void ) const { return WEAPON_SUPERSHOTGUN; }
+
 	virtual int AmmoPerShot() { return 2; } // Super Shotgun uses 2 bullets per shot
 
 private:

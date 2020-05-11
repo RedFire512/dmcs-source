@@ -122,7 +122,6 @@ $Project "Server"
 			$File	"$SRCDIR\game\shared\hl2\hl2_player_shared.h"
 			$File	"hl2\hl2_playerlocaldata.cpp"
 			$File	"hl2\hl2_playerlocaldata.h"
-			$File	"$SRCDIR\game\shared\hl2\hl2_shareddefs.h"
 			$File	"hl2\hl2_triggers.cpp"
 			$File	"$SRCDIR\game\shared\hl2\hl2_usermessages.cpp"
 			$File	"$SRCDIR\game\shared\hl2\hl_gamemovement.cpp"
@@ -266,12 +265,21 @@ $Project "Server"
 			$File	"$SRCDIR\game\shared\Multiplayer\multiplayer_animstate.h"
 			$File	"$SRCDIR\game\shared\hl2mp\hl2mp_playeranimstate.cpp"
 			$File	"$SRCDIR\game\shared\hl2mp\hl2mp_playeranimstate.h"
+			$File	"$SRCDIR\game\shared\hl2\hl2_shareddefs.cpp"
+			$File	"$SRCDIR\game\shared\hl2\hl2_shareddefs.h"
 
 			$Folder	"Solidd Entities"
 			{
 				$File	"hl2\trigger_super_armor.cpp"
 				$File	"hl2\func_bulletshield.cpp"
 				$File	"hl2\func_bulletshield.h"
+			}
+			
+			$Folder	"Items"
+			{
+				$File	"dmc\dmc_item_ammo.cpp"
+				$File	"dmc\item_armor.cpp"
+				$File	"dmc\item_health.cpp"
 			}
 		
 			$Folder	"Weapons"

@@ -35,31 +35,32 @@ public:
 	DECLARE_CLASS( CWeaponHL2MPBase, CBaseCombatWeapon );
 	DECLARE_NETWORKCLASS(); 
 	DECLARE_PREDICTABLE();
+#ifdef GAME_DLL
+	DECLARE_DATADESC();
+#endif
 
 	CWeaponHL2MPBase();
 
-#ifdef GAME_DLL
-		DECLARE_DATADESC();
-		void Materialize( void );
-		virtual	int	ObjectCaps( void );
-		virtual void	FallThink( void );						// make the weapon fall to the ground after spawning
-#endif
+	virtual void Spawn();
 
 	// All predicted weapons need to implement and return true
-	virtual bool	IsPredicted() const { return true; }
+	virtual bool IsPredicted() const { return true; }
 
 	CBasePlayer* GetPlayerOwner() const;
 	CHL2MP_Player* GetHL2MPPlayerOwner() const;
 
 	void WeaponSound( WeaponSound_t sound_type, float soundtime = 0.0f );
 	
+	// Weapon Data.
 	CHL2MPSWeaponInfo const	&GetHL2MPWpnData() const;
+	virtual int GetWeaponID( void ) const;
+	virtual bool IsWeapon( int iWeapon ) const;
 
 	virtual void FireBullets( const FireBulletsInfo_t &info );
 	virtual void FallInit( void );
 
 	// Reloading
-	// Reloading is gone from DM:CS
+	// Reloading is gone from DMC:S
 	virtual	void CheckReload( void ) OVERRIDE {}
 	virtual void FinishReload( void ) OVERRIDE {}
 	virtual void AbortReload( void ) OVERRIDE {}
@@ -74,18 +75,18 @@ public:
 	
 public:
 #if defined( CLIENT_DLL )
-	
-	virtual bool	ShouldPredict();
-	virtual void	OnDataChanged( DataUpdateType_t type );
-
-	virtual void	AddViewmodelBob( CBaseViewModel *viewmodel, Vector &origin, QAngle &angles );
-	virtual	float	CalcViewmodelBob( void );
+	virtual bool ShouldPredict();
+	virtual void OnDataChanged( DataUpdateType_t type );
+	virtual void AddViewmodelBob( CBaseViewModel *viewmodel, Vector &origin, QAngle &angles );
+	virtual	float CalcViewmodelBob( void );
 #else
-	virtual void	Spawn();
+	virtual void Materialize( void );
+	virtual	int	ObjectCaps( void );
+	virtual void FallThink( void );						// make the weapon fall to the ground after spawning
 #endif
 
-	float		m_flPrevAnimTime;
-	float  m_flNextResetCheckTime;
+	float m_flPrevAnimTime;
+	float m_flNextResetCheckTime;
 
 	Vector	GetOriginalSpawnOrigin( void ) { return m_vOriginalSpawnOrigin;	}
 	QAngle	GetOriginalSpawnAngles( void ) { return m_vOriginalSpawnAngles;	}
@@ -97,6 +98,5 @@ private:
 	Vector m_vOriginalSpawnOrigin;
 	QAngle m_vOriginalSpawnAngles;
 };
-
 
 #endif // WEAPON_HL2MPBASE_H

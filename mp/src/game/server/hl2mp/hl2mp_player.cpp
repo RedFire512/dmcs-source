@@ -712,6 +712,55 @@ void CHL2MP_Player::CreateRagdollEntity( void )
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
+bool CHL2MP_Player::ApplyArmor( int ammount )
+{
+	int MAX_NORMAL_BATTERY = 500;
+
+	if ( ( ArmorValue() < MAX_NORMAL_BATTERY ) && IsSuitEquipped() )
+	{
+		IncrementArmorValue( ammount, MAX_NORMAL_BATTERY );
+
+		CPASAttenuationFilter filter( this, "Armor.Touch" );
+		EmitSound( filter, entindex(), "Armor.Touch" );
+
+		CSingleUserRecipientFilter user( this );
+		user.MakeReliable();
+
+		UserMessageBegin( user, "ItemPickup" );
+			WRITE_STRING( "item_battery" );
+		MessageEnd();
+
+		return true;		
+	}
+
+	return false;
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+bool CHL2MP_Player::ApplyHealth( int ammount )
+{
+	if ( GetHealth() < GetMaxHealth() )
+	{
+		IncrementArmorValue( ammount, GetMaxHealth() );
+
+		CPASAttenuationFilter filter( this, "Health.Touch" );
+		EmitSound( filter, entindex(), "Health.Touch" );
+
+		CSingleUserRecipientFilter user( this );
+		user.MakeReliable();
+
+		UserMessageBegin( user, "ItemPickup" );
+			WRITE_STRING( "item_battery" );
+		MessageEnd();
+
+		return true;		
+	}
+
+	return false;
+}
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 int CHL2MP_Player::FlashlightIsOn( void )
 {
 	return IsEffectActive( EF_DIMLIGHT );

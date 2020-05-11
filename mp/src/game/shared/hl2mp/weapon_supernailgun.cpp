@@ -31,6 +31,8 @@ public:
 	DECLARE_PREDICTABLE();
 	DECLARE_ACTTABLE();
 
+	virtual int GetWeaponID( void ) const { return WEAPON_SUPERNAILGUN; }
+
 	virtual void Precache( void );
 	virtual void PrimaryAttack();
 

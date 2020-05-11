@@ -99,7 +99,6 @@ void CWeaponHL2MPBase::WeaponSound( WeaponSound_t sound_type, float soundtime /*
 #endif
 }
 
-
 CBasePlayer* CWeaponHL2MPBase::GetPlayerOwner() const
 {
 	return dynamic_cast< CBasePlayer* >( GetOwner() );
@@ -129,17 +128,7 @@ bool CWeaponHL2MPBase::ShouldPredict()
 	return BaseClass::ShouldPredict();
 }
 
-
 #else
-	
-void CWeaponHL2MPBase::Spawn()
-{
-	BaseClass::Spawn();
-
-	// Set this here to allow players to shoot dropped weapons
-	SetCollisionGroup( COLLISION_GROUP_WEAPON );
-}
-
 void CWeaponHL2MPBase::Materialize( void )
 {
 	if ( IsEffectActive( EF_NODRAW ) )
@@ -269,7 +258,6 @@ void CWeaponHL2MPBase::FallThink( void )
 }
 #endif // GAME_DLL
 
-
 const CHL2MPSWeaponInfo &CWeaponHL2MPBase::GetHL2MPWpnData() const
 {
 	const FileWeaponInfo_t *pWeaponInfo = &GetWpnData();
@@ -284,6 +272,18 @@ const CHL2MPSWeaponInfo &CWeaponHL2MPBase::GetHL2MPWpnData() const
 
 	return *pHL2MPInfo;
 }
+
+int CWeaponHL2MPBase::GetWeaponID( void ) const
+{
+	Assert( !"Derived classes must implement this." );
+	return WEAPON_NONE;
+}
+
+bool CWeaponHL2MPBase::IsWeapon( int iWeapon ) const
+{
+	return GetWeaponID() == iWeapon;
+}
+
 void CWeaponHL2MPBase::FireBullets( const FireBulletsInfo_t &info )
 {
 	FireBulletsInfo_t modinfo = info;
@@ -293,9 +293,7 @@ void CWeaponHL2MPBase::FireBullets( const FireBulletsInfo_t &info )
 	BaseClass::FireBullets( modinfo );
 }
 
-
 #if defined( CLIENT_DLL )
-
 extern float g_lateralBob;
 extern float g_verticalBob;
 
@@ -342,8 +340,6 @@ float CWeaponHL2MPBase::CalcViewmodelBob( void )
 	//FIXME: This maximum speed value must come from the server.
 	//		 MaxSpeed() is not sufficient for dealing with sprinting - jdw
 
-
-
 	float bob_offset = RemapVal( speed, 0, 320, 0.0f, 1.0f );
 
 	bobtime += ( gpGlobals->curtime - lastbobtime ) * bob_offset;
@@ -354,13 +350,9 @@ float CWeaponHL2MPBase::CalcViewmodelBob( void )
 	cycle /= cl_bobcycle.GetFloat();
 
 	if ( cycle < cl_bobup.GetFloat() )
-	{
 		cycle = M_PI * cycle / cl_bobup.GetFloat();
-	}
 	else
-	{
 		cycle = M_PI + M_PI*(cycle-cl_bobup.GetFloat())/(1.0 - cl_bobup.GetFloat());
-	}
 
 	g_verticalBob = speed*0.005f;
 	g_verticalBob = g_verticalBob*0.3 + g_verticalBob*0.7*sin(cycle);
@@ -372,13 +364,9 @@ float CWeaponHL2MPBase::CalcViewmodelBob( void )
 	cycle /= cl_bobcycle.GetFloat()*2;
 
 	if ( cycle < cl_bobup.GetFloat() )
-	{
 		cycle = M_PI * cycle / cl_bobup.GetFloat();
-	}
 	else
-	{
 		cycle = M_PI + M_PI*(cycle-cl_bobup.GetFloat())/(1.0 - cl_bobup.GetFloat());
-	}
 
 	g_lateralBob = speed*0.005f;
 	g_lateralBob = g_lateralBob*0.3 + g_lateralBob*0.7*sin(cycle);
@@ -414,7 +402,7 @@ void CWeaponHL2MPBase::AddViewmodelBob( CBaseViewModel *viewmodel, Vector &origi
 
 	angles[ YAW ]	-= g_lateralBob  * 0.3f;
 
-//	VectorMA( origin, g_lateralBob * 0.2f, right, origin );
+	VectorMA( origin, g_lateralBob * 0.2f, right, origin );
 }
 
 void UTIL_ClipPunchAngleOffset( QAngle &in, const QAngle &punch, const QAngle &clip )
@@ -425,13 +413,9 @@ void UTIL_ClipPunchAngleOffset( QAngle &in, const QAngle &punch, const QAngle &c
 	for ( int i = 0; i < 3; i++ )
 	{
 		if ( final[i] > clip[i] )
-		{
 			final[i] = clip[i];
-		}
 		else if ( final[i] < -clip[i] )
-		{
 			final[i] = -clip[i];
-		}
 
 		//Return the result
 		in[i] = final[i] - punch[i];

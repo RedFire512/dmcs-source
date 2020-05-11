@@ -38,6 +38,7 @@ public:
 	DECLARE_NETWORKCLASS(); 
 	DECLARE_PREDICTABLE();
 
+	virtual int GetWeaponID( void ) const { return WEAPON_GRENADELAUNCHER; }
 	
 	void	Precache( void );
 	void	AddViewKick( void );

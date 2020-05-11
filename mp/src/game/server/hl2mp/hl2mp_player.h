@@ -55,8 +55,8 @@ public:
 	DECLARE_PREDICTABLE();
 
 	// This passes the event to the client's and server's CHL2MPPlayerAnimState.
-	void			DoAnimationEvent( PlayerAnimEvent_t event, int nData = 0 );
-	void			SetupBones( matrix3x4_t *pBoneToWorld, int boneMask );
+	void DoAnimationEvent( PlayerAnimEvent_t event, int nData = 0 );
+	void SetupBones( matrix3x4_t *pBoneToWorld, int boneMask );
 
 	virtual void Precache( void );
 	virtual void InitialSpawn();
@@ -82,7 +82,7 @@ public:
 	int FlashlightIsOn( void );
 	void FlashlightTurnOn( void );
 	void FlashlightTurnOff( void );
-	bool	ValidatePlayerModel( const char *pModel );
+	bool ValidatePlayerModel( const char *pModel );
 
 	Vector GetAttackSpread( CBaseCombatWeapon *pWeapon, CBaseEntity *pTarget = NULL );
 	virtual Vector GetAutoaimVector( float flDelta );
@@ -112,11 +112,16 @@ public:
 	void State_Enter_OBSERVER_MODE();
 	void State_PreThink_OBSERVER_MODE();
 
-
 	virtual bool StartObserverMode( int mode );
 	virtual void StopObserverMode( void );
 
 	virtual bool	RunMimicCommand( CUserCmd& cmd );	// Used by bots
+
+	// Apply a battery
+	bool ApplyArmor( int ammount );
+
+	// Apply Health
+	bool ApplyHealth( int ammount );
 
 	Vector m_vecTotalBulletForce;	//Accumulator for bullet force in a single frame
 

@@ -30,6 +30,8 @@ public:
 public:
 	CWeaponShotgun( void );
 
+	virtual int GetWeaponID( void ) const { return WEAPON_SHOTGUN; }
+
 	virtual const Vector& GetBulletSpread( void )
 	{
 		static Vector cone = VECTOR_CONE_10DEGREES;
