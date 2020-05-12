@@ -133,14 +133,14 @@ class CItem_Cells : public CItem_Ammo
 {
 public:
     DECLARE_CLASS( CItem_Cells, CItem_Ammo );
-    CItem_Cells() : BaseClass( "AMMO_CELLS", 6, "models/items/hevsuit.mdl" ) { }
+    CItem_Cells() : BaseClass( "AMMO_CELLS", 6, "models/items/battery.mdl" ) { }
 };
 
 class CItem_CellsLarge : public CItem_Ammo
 {
 public:
     DECLARE_CLASS( CItem_CellsLarge, CItem_Ammo );
-    CItem_CellsLarge() : BaseClass( "AMMO_CELLS", 12, "models/items/hevsuit.mdl" ) { }
+    CItem_CellsLarge() : BaseClass( "AMMO_CELLS", 12, "models/items/battery.mdl" ) { }
 };
 
 LINK_ENTITY_TO_CLASS( item_cells, CItem_Cells );

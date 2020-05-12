@@ -15,7 +15,7 @@ const char* g_aAmmoNames[] =
 	"AMMO_SHELLS",
 	"AMMO_NAILS",
 	"AMMO_ROCKETS",
-	"AMMO_NAILS",
+	"AMMO_CELLS",
 	"AMMO_LAST"
 };
 
