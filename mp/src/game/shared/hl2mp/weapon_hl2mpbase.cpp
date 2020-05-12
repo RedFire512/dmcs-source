@@ -56,6 +56,17 @@ CWeaponHL2MPBase::CWeaponHL2MPBase()
 }
 
 //-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+void CWeaponHL2MPBase::Spawn()
+{
+	BaseClass::Spawn();
+
+	// Set this here to allow players to shoot dropped weapons
+	SetCollisionGroup( COLLISION_GROUP_WEAPON );
+}
+
+//-----------------------------------------------------------------------------
 // Purpose: If the current weapon has more ammo, reload it. Otherwise, switch 
 //			to the next best weapon we've got. Returns true if it took any action.
 //-----------------------------------------------------------------------------
