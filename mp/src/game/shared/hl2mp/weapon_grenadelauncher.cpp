@@ -134,11 +134,11 @@ void CWeaponGrenadeLauncher::PrimaryAttack( void )
 		return;
 
 	//Must have ammo
-	if ( ( pPlayer->GetAmmoCount( m_iSecondaryAmmoType ) <= 0 ) )
+	if ( ( pPlayer->GetAmmoCount( m_iPrimaryAmmoType ) <= 0 ) )
 	{
 		SendWeaponAnim( ACT_VM_DRYFIRE );
 		BaseClass::WeaponSound( EMPTY );
-		m_flNextSecondaryAttack = gpGlobals->curtime + 0.5f;
+		m_flNextPrimaryAttack = gpGlobals->curtime + 0.5f;
 		return;
 	}
 
@@ -171,7 +171,7 @@ void CWeaponGrenadeLauncher::PrimaryAttack( void )
 	pPlayer->DoAnimationEvent( PLAYERANIMEVENT_ATTACK_PRIMARY );
 
 	// Decrease ammo
-	pPlayer->RemoveAmmo( 1, m_iSecondaryAmmoType );
+	pPlayer->RemoveAmmo( 1, m_iPrimaryAmmoType );
 
 	// Can shoot again immediately
 	m_flNextPrimaryAttack = gpGlobals->curtime + 0.5f;
