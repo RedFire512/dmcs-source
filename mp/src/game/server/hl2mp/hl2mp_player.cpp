@@ -742,7 +742,7 @@ bool CHL2MP_Player::ApplyHealth( int ammount )
 {
 	if ( GetHealth() < GetMaxHealth() )
 	{
-		IncrementArmorValue( ammount, GetMaxHealth() );
+		TakeHealth( (float)ammount, DMG_GENERIC );
 
 		CPASAttenuationFilter filter( this, "Health.Touch" );
 		EmitSound( filter, entindex(), "Health.Touch" );
@@ -751,7 +751,7 @@ bool CHL2MP_Player::ApplyHealth( int ammount )
 		user.MakeReliable();
 
 		UserMessageBegin( user, "ItemPickup" );
-			WRITE_STRING( "item_battery" );
+			WRITE_STRING( "item_healthkit" );
 		MessageEnd();
 
 		return true;		
