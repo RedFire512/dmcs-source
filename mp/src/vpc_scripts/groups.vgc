@@ -16,6 +16,7 @@ $Group "game"
 	"server"
 	"tier1"
 	"vgui_controls"
+	"game_shader_dx9"
 }
 
 $Group "dedicated"
