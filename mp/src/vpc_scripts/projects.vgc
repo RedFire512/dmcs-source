@@ -13,11 +13,6 @@ $Project "client"
 	"game\client\client_dmc.vpc"		[($WIN32||$POSIX) && $DMC]
 }
 
-$Project "game_shader_dx9"
-{
-	"materialsystem\stdshaders\game_shader_dx9_dmc.vpc" [$DMC]
-}
-
 $Project "server"
 {
 	"game\server\server_dmc.vpc"		[($WIN32||$POSIX) && $DMC]
