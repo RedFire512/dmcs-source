@@ -642,21 +642,6 @@ void CHL2MPRules::ClientSettingsChanged( CBasePlayer *pPlayer )
 	//If we're different.
 	if ( stricmp( szModelName, pCurrentModel ) )
 	{
-		//Too soon, set the cvar back to what it was.
-		//Note: this will make this function be called again
-		//but since our models will match it'll just skip this whole dealio.
-		if ( pHL2Player->GetNextModelChangeTime() >= gpGlobals->curtime )
-		{
-			char szReturnString[512];
-
-			Q_snprintf( szReturnString, sizeof (szReturnString ), "cl_playermodel %s\n", pCurrentModel );
-			engine->ClientCommand ( pHL2Player->edict(), szReturnString );
-
-			Q_snprintf( szReturnString, sizeof( szReturnString ), "Please wait %d more seconds before trying to switch.\n", (int)(pHL2Player->GetNextModelChangeTime() - gpGlobals->curtime) );
-			ClientPrint( pHL2Player, HUD_PRINTTALK, szReturnString );
-			return;
-		}
-
 		pHL2Player->SetPlayerModel();
 
 		const char *pszCurrentModelName = modelinfo->GetModelName( pHL2Player->GetModel() );

@@ -164,6 +164,8 @@ $Project "Client"
 				$File	"hl2mp\ui\hl2mptextwindow.h"
 				$File	"hl2mp\hud_deathnotice.cpp"
 				$File	"dmc\hud_maptimer.cpp"
+				$File	"dmc\PlayerModelDialog.cpp"
+				$File	"dmc\PlayerModelDialog.h"
 			}
 		}
 	}

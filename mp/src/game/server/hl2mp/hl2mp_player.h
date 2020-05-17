@@ -82,7 +82,6 @@ public:
 	int FlashlightIsOn( void );
 	void FlashlightTurnOn( void );
 	void FlashlightTurnOff( void );
-	bool ValidatePlayerModel( const char *pModel );
 
 	Vector GetAttackSpread( CBaseCombatWeapon *pWeapon, CBaseEntity *pTarget = NULL );
 	virtual Vector GetAutoaimVector( float flDelta );
@@ -97,8 +96,6 @@ public:
 	void SetAnimation( PLAYER_ANIM playerAnim );
 
 	void SetPlayerModel( void );
-	
-	float GetNextModelChangeTime( void ) { return m_flNextModelChangeTime; }
 	void  PickDefaultSpawnTeam( void );
 
 	void State_Transition( HL2MPPlayerState newState );
@@ -140,8 +137,6 @@ private:
 
 	int m_iLastWeaponFireUsercmd;
 	CNetworkVar( int, m_iSpawnInterpCounter );
-
-	float m_flNextModelChangeTime;
 
 	HL2MPPlayerState m_iPlayerState;
 	CHL2MPPlayerStateInfo *m_pCurStateInfo;

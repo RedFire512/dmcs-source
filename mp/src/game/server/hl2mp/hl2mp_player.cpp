@@ -27,6 +27,7 @@
 #include "obstacle_pushaway.h"
 #include "ilagcompensationmanager.h"
 #include "viewport_panel_names.h"
+#include "filesystem.h"
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
@@ -41,8 +42,19 @@ extern int	gEvilImpulse101;
 #define HL2MP_PUSHAWAY_THINK_CONTEXT	"HL2MPPushawayThink"
 #define CYCLELATCH_UPDATE_INTERVAL	0.2f
 
-
 LINK_ENTITY_TO_CLASS( player, CHL2MP_Player );
+
+const char* g_PlayerModels[] =
+{
+	"models/player/alyx.mdl",
+	"models/player/barney.mdl",
+	"models/player/combine_soldier.mdl",
+	"models/player/combine_super_soldier.mdl",
+	"models/player/gman_high.mdl",
+	"models/player/gordon.mdl",
+	"models/player/kleiner.mdl",
+	"models/player/zombie_classic.mdl",
+};
 
 extern void SendProxy_Origin( const SendProp *pProp, const void *pStruct, const void *pData, DVariant *pOut, int iElement, int objectID );
 
@@ -103,30 +115,6 @@ END_SEND_TABLE()
 BEGIN_DATADESC( CHL2MP_Player )
 END_DATADESC()
 
-const char *g_ppszRandomPlayerModels[] = 
-{
-	"models/humans/group03/male_01.mdl",
-	"models/humans/group03/male_02.mdl",
-	"models/humans/group03/female_01.mdl",
-	"models/humans/group03/male_03.mdl",
-	"models/humans/group03/female_02.mdl",
-	"models/humans/group03/male_04.mdl",
-	"models/humans/group03/female_03.mdl",
-	"models/humans/group03/male_05.mdl",
-	"models/humans/group03/female_04.mdl",
-	"models/humans/group03/male_06.mdl",
-	"models/humans/group03/female_06.mdl",
-	"models/humans/group03/male_07.mdl",
-	"models/humans/group03/female_07.mdl",
-	"models/humans/group03/male_08.mdl",
-	"models/humans/group03/male_09.mdl",
-	"models/combine_soldier.mdl",
-	"models/combine_soldier_prisonguard.mdl",
-	"models/combine_super_soldier.mdl",
-	"models/police.mdl",
-};
-
-#define MODEL_CHANGE_INTERVAL 5.0f
 #define HL2MPPLAYER_PHYSDAMAGE_SCALE 4.0f
 
 #pragma warning( disable : 4355 )
@@ -140,8 +128,6 @@ CHL2MP_Player::CHL2MP_Player()
 	m_angEyeAngles.Init();
 
 	m_iLastWeaponFireUsercmd = 0;
-
-	m_flNextModelChangeTime = 0.0f;
 
 	m_iSpawnInterpCounter = 0;
 
@@ -175,14 +161,19 @@ void CHL2MP_Player::Precache( void )
 	PrecacheScriptSound( "Player.Jump" );
 	PrecacheScriptSound( "Player.JumpLanding" );
 
-	PrecacheModel ( "sprites/glow01.vmt" );
-
 	//Precache Player models
-	int nHeads = ARRAYSIZE( g_ppszRandomPlayerModels );
-	int i;	
+	FileFindHandle_t findHandle = NULL;
 
-	for ( i = 0; i < nHeads; ++i )
-	   	 PrecacheModel( g_ppszRandomPlayerModels[i] );
+	const char *pszFilename = g_pFullFileSystem->FindFirst( "models/player/*.mdl", &findHandle );
+	while ( pszFilename )
+	{
+		char szModelName[2048];
+		Q_snprintf( szModelName, sizeof( szModelName ), "models/player/%s", pszFilename );
+		CBaseEntity::PrecacheModel( szModelName );
+		DevMsg( "Precached Player Model %s\n", szModelName );
+		pszFilename = g_pFullFileSystem->FindNext( findHandle );
+	}
+	g_pFullFileSystem->FindClose( findHandle );
 }
 
 void CHL2MP_Player::GiveAllItems( void )
@@ -218,17 +209,6 @@ void CHL2MP_Player::PickDefaultSpawnTeam( void )
 	{
 		if ( GetModelPtr() == NULL )
 		{
-			const char *szModelName = NULL;
-			szModelName = engine->GetClientConVarValue( engine->IndexOfEdict( edict() ), "cl_playermodel" );
-
-			if ( ValidatePlayerModel( szModelName ) == false )
-			{
-				char szReturnString[512];
-
-				Q_snprintf( szReturnString, sizeof (szReturnString ), "cl_playermodel models/combine_soldier.mdl\n" );
-				engine->ClientCommand ( edict(), szReturnString );
-			}
-
 			ChangeTeam( TEAM_UNASSIGNED );
 		}
 	}
@@ -269,8 +249,6 @@ void CHL2MP_Player::InitialSpawn( void )
 //-----------------------------------------------------------------------------
 void CHL2MP_Player::Spawn(void)
 {
-	m_flNextModelChangeTime = 0.0f;
-
 	PickDefaultSpawnTeam();
 
 	BaseClass::Spawn();
@@ -314,60 +292,24 @@ void CHL2MP_Player::Spawn(void)
 	SetContextThink( &CHL2MP_Player::HL2MPPushawayThink, gpGlobals->curtime + PUSHAWAY_THINK_INTERVAL, HL2MP_PUSHAWAY_THINK_CONTEXT );
 }
 
-bool CHL2MP_Player::ValidatePlayerModel( const char *pModel )
-{
-	int iModels = ARRAYSIZE( g_ppszRandomPlayerModels );
-	int i;	
-
-	for ( i = 0; i < iModels; ++i )
-	{
-		if ( !Q_stricmp( g_ppszRandomPlayerModels[i], pModel ) )
-		{
-			return true;
-		}
-	}
-
-	return false;
-}
-
 void CHL2MP_Player::SetPlayerModel( void )
 {
-	const char *szModelName = NULL;
-	const char *pszCurrentModelName = modelinfo->GetModelName( GetModel());
-
-	szModelName = engine->GetClientConVarValue( engine->IndexOfEdict( edict() ), "cl_playermodel" );
-
-	if ( ValidatePlayerModel( szModelName ) == false )
+	// Bots use legacy sytem because i'm stupid to know how to get this - kris
+	if ( IsBot() )
 	{
-		char szReturnString[512];
-
-		if ( ValidatePlayerModel( pszCurrentModelName ) == false )
-			pszCurrentModelName = "models/Combine_Soldier.mdl";
-
-		Q_snprintf( szReturnString, sizeof (szReturnString ), "cl_playermodel %s\n", pszCurrentModelName );
-		engine->ClientCommand ( edict(), szReturnString );
-
-		szModelName = pszCurrentModelName;
+		SetModel( g_PlayerModels[random->RandomInt( 0, ARRAYSIZE( g_PlayerModels ) - 1 )] );
 	}
-
-	if ( Q_strlen( szModelName ) == 0 ) 
-		szModelName = g_ppszRandomPlayerModels[0];
-
-	int modelIndex = modelinfo->GetModelIndex( szModelName );
-
-	if ( modelIndex == -1 )
+	else 
 	{
-		szModelName = "models/Combine_Soldier.mdl";
+		const char *szModelName = NULL;
+		const char *szPlayerModelVal = engine->GetClientConVarValue( engine->IndexOfEdict( edict() ), "cl_playermodel" );
+		if ( Q_strcmp( szPlayerModelVal, "none" ) == 0 )
+			szModelName = "models/player/gordon.mdl";
+		else
+			szModelName = szPlayerModelVal;
 
-		char szReturnString[512];
-
-		Q_snprintf( szReturnString, sizeof (szReturnString ), "cl_playermodel %s\n", szModelName );
-		engine->ClientCommand ( edict(), szReturnString );
+		SetModel( szModelName );
 	}
-
-	SetModel( szModelName );
-
-	m_flNextModelChangeTime = gpGlobals->curtime + MODEL_CHANGE_INTERVAL;
 }
 
 bool CHL2MP_Player::Weapon_Switch( CBaseCombatWeapon *pWeapon, int viewmodelindex )
