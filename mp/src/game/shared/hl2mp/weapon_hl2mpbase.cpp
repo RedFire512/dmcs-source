@@ -1,4 +1,4 @@
-//========= Copyright Valve Corporation, All rights reserved. ============//
+//========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
 //
 // Purpose: 
 //
@@ -14,6 +14,12 @@
 
 #if defined( CLIENT_DLL )
 	#include "c_hl2mp_player.h"
+	#include "dmc/quake3bob.h"
+
+	ConVar glow_outline_color_red( "glow_outline_color_red", "255", FCVAR_ARCHIVE );
+	ConVar glow_outline_color_green( "glow_outline_color_green", "255", FCVAR_ARCHIVE );
+	ConVar glow_outline_color_blue( "glow_outline_color_blue", "255", FCVAR_ARCHIVE );
+	extern ConVar glow_outline_effect_enable;
 #else
 	#include "hl2mp_player.h"
 	#include "vphysics/constraints.h"
@@ -33,6 +39,15 @@ bool IsAmmoType( int iAmmoType, const char *pAmmoName )
 IMPLEMENT_NETWORKCLASS_ALIASED( WeaponHL2MPBase, DT_WeaponHL2MPBase )
 
 BEGIN_NETWORK_TABLE( CWeaponHL2MPBase, DT_WeaponHL2MPBase )
+#if !defined( CLIENT_DLL )
+	SendPropBool( SENDINFO( m_bQuake3Bob ) ),
+	SendPropVector( SENDINFO( m_vOriginalSpawnOrigin ) ),
+	SendPropVector( SENDINFO( m_vOriginalSpawnAngles ) ),
+#else
+	RecvPropBool( RECVINFO( m_bQuake3Bob ) ),
+	RecvPropVector( RECVINFO( m_vOriginalSpawnOrigin ) ),
+	RecvPropVector( RECVINFO( m_vOriginalSpawnAngles ) ),
+#endif
 END_NETWORK_TABLE()
 
 BEGIN_PREDICTION_DATA( CWeaponHL2MPBase ) 
@@ -51,6 +66,8 @@ CWeaponHL2MPBase::CWeaponHL2MPBase()
 	SetPredictionEligible( true );
 	AddSolidFlags( FSOLID_TRIGGER ); // Nothing collides with these but it gets touches.
 
+	m_bQuake3Bob = true;
+
 	m_flNextResetCheckTime = 0.0f;
 	m_bFiresUnderwater = true;
 }
@@ -64,6 +81,30 @@ void CWeaponHL2MPBase::Spawn()
 
 	// Set this here to allow players to shoot dropped weapons
 	SetCollisionGroup( COLLISION_GROUP_WEAPON );
+	
+	m_vOriginalSpawnOrigin = GetAbsOrigin();
+	m_vOriginalSpawnAngles = GetAbsAngles();
+
+#ifdef CLIENT_DLL
+	// For Q3A Item bobbing, make starting angle random.
+	ClientRotAng = { 0.0, FRand(0.0, 359.0), 0.0 };
+	ClientThink();
+#endif
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Become a child of the owner (MOVETYPE_FOLLOW)
+//			disables collisions, touch functions, thinking
+// Input  : *pOwner - new owner/operator
+//-----------------------------------------------------------------------------
+void CWeaponHL2MPBase::Equip( CBaseCombatCharacter *pOwner )
+{
+	BaseClass::Equip( pOwner );
+
+#if !defined( CLIENT_DLL )
+	RemoveSpawnFlags( SF_WEAPON_DISABLE_BOB );
+	m_bQuake3Bob = false;
+#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -140,6 +181,38 @@ bool CWeaponHL2MPBase::ShouldPredict()
 }
 
 #else
+//-----------------------------------------------------------------------------
+// Purpose: Make the weapon visible and tangible
+//-----------------------------------------------------------------------------
+CBaseEntity* CWeaponHL2MPBase::Respawn( void )
+{
+	// make a copy of this weapon that is invisible and inaccessible to players (no touch function). The weapon spawn/respawn code
+	// will decide when to make the weapon visible and touchable.
+	CWeaponHL2MPBase *pNewWeapon = (CWeaponHL2MPBase *)CBaseEntity::Create( GetClassname(), g_pGameRules->VecWeaponRespawnSpot( this ), GetLocalAngles(), GetOwnerEntity() );
+
+	if ( pNewWeapon )
+	{
+		pNewWeapon->AddEffects( EF_NODRAW );// invisible for now
+		pNewWeapon->SetTouch( NULL );// no touch
+		pNewWeapon->SetThink( &CBaseCombatWeapon::AttemptToMaterialize );
+		pNewWeapon->AddSpawnFlags( GetSpawnFlags() );
+		pNewWeapon->SetupPhysics();
+
+		if ( !HasSpawnFlags( SF_WEAPON_START_CONSTRAINED ) && HasSpawnFlags( SF_WEAPON_DISABLE_BOB ) )
+			UTIL_DropToFloor( this, MASK_SOLID );
+
+		// not a typo! We want to know when the weapon the player just picked up should respawn! This new entity we created is the replacement,
+		// but when it should respawn is based on conditions belonging to the weapon that was taken.
+		pNewWeapon->SetNextThink( gpGlobals->curtime + g_pGameRules->FlWeaponRespawnTime( this ) );
+	}
+	else
+	{
+		Warning( "Respawn failed to create %s!\n", GetClassname() );
+	}
+
+	return (CBaseEntity *)pNewWeapon;
+}
+
 void CWeaponHL2MPBase::Materialize( void )
 {
 	if ( IsEffectActive( EF_NODRAW ) )
@@ -153,9 +226,7 @@ void CWeaponHL2MPBase::Materialize( void )
 
 	if ( HasSpawnFlags( SF_NORESPAWN ) == false )
 	{
-		VPhysicsInitNormal( SOLID_BBOX, GetSolidFlags() | FSOLID_TRIGGER, false );
-		SetMoveType( MOVETYPE_VPHYSICS );
-
+		SetupPhysics();
 		HL2MPRules()->AddLevelDesignerPlacedObject( this );
 	}
 
@@ -184,66 +255,73 @@ void CWeaponHL2MPBase::FallInit( void )
 {
 #ifndef CLIENT_DLL
 	SetModel( GetWorldModel() );
-	VPhysicsDestroyObject();
 
-	if ( HasSpawnFlags( SF_NORESPAWN ) == false )
-	{
-		SetMoveType( MOVETYPE_NONE );
-		SetSolid( SOLID_BBOX );
-		AddSolidFlags( FSOLID_TRIGGER );
-
-		UTIL_DropToFloor( this, MASK_SOLID );
-	}
-	else
-	{
-		if ( !VPhysicsInitNormal( SOLID_BBOX, GetSolidFlags() | FSOLID_TRIGGER, false ) )
-		{
-			SetMoveType( MOVETYPE_NONE );
-			SetSolid( SOLID_BBOX );
-			AddSolidFlags( FSOLID_TRIGGER );
-		}
-		else
-		{
-	#if !defined( CLIENT_DLL )
-			// Constrained start?
-			if ( HasSpawnFlags( SF_WEAPON_START_CONSTRAINED ) )
-			{
-				//Constrain the weapon in place
-				IPhysicsObject *pReferenceObject, *pAttachedObject;
-				
-				pReferenceObject = g_PhysWorldObject;
-				pAttachedObject = VPhysicsGetObject();
-
-				if ( pReferenceObject && pAttachedObject )
-				{
-					constraint_fixedparams_t fixed;
-					fixed.Defaults();
-					fixed.InitWithCurrentObjectState( pReferenceObject, pAttachedObject );
-					
-					fixed.constraint.forceLimit	= lbs2kg( 10000 );
-					fixed.constraint.torqueLimit = lbs2kg( 10000 );
-
-					IPhysicsConstraint *pConstraint = GetConstraint();
-
-					pConstraint = physenv->CreateFixedConstraint( pReferenceObject, pAttachedObject, NULL, fixed );
-
-					pConstraint->SetGameData( (void *) this );
-				}
-			}
-	#endif //CLIENT_DLL
-		}
-	}
+	SetupPhysics();
 
 	SetPickupTouch();
 	
 	SetThink( &CWeaponHL2MPBase::FallThink );
 
 	SetNextThink( gpGlobals->curtime + 0.1f );
-
 #endif
 }
 
 #ifdef GAME_DLL
+//-----------------------------------------------------------------------------
+// Purpose: Set up physics for weapon
+//-----------------------------------------------------------------------------
+void CWeaponHL2MPBase::SetupPhysics( void )
+{
+	VPhysicsDestroyObject();
+
+	if ( !HasSpawnFlags( SF_WEAPON_DISABLE_BOB ) )
+	{
+		//m_bQuake3Bob = true;
+
+		VPhysicsDestroyObject();
+		SetMoveType( MOVETYPE_NONE );
+		SetSolid( SOLID_NONE );
+		return;
+	}
+
+	m_bQuake3Bob = false;
+
+	if ( !VPhysicsInitNormal( SOLID_BBOX, GetSolidFlags() | FSOLID_TRIGGER, false ) )
+	{
+		SetMoveType( MOVETYPE_FLYGRAVITY );
+		SetSolid( SOLID_BBOX );
+		AddSolidFlags( FSOLID_TRIGGER );
+	}
+	else
+	{
+		SetMoveType( MOVETYPE_VPHYSICS );
+
+		// Constrained start?
+		if ( HasSpawnFlags( SF_WEAPON_START_CONSTRAINED ) )
+		{
+			//Constrain the weapon in place
+			IPhysicsObject *pReferenceObject, *pAttachedObject;
+
+			pReferenceObject = g_PhysWorldObject;
+			pAttachedObject = VPhysicsGetObject();
+
+			if ( pReferenceObject && pAttachedObject )
+			{
+				constraint_fixedparams_t fixed;
+				fixed.Defaults();
+				fixed.InitWithCurrentObjectState( pReferenceObject, pAttachedObject );
+
+				fixed.constraint.forceLimit = lbs2kg( 10000 );
+				fixed.constraint.torqueLimit = lbs2kg( 10000 );
+
+				m_pConstraint = physenv->CreateFixedConstraint( pReferenceObject, pAttachedObject, NULL, fixed );
+
+				m_pConstraint->SetGameData( (void *) this );
+			}
+		}
+	}
+}
+
 void CWeaponHL2MPBase::FallThink( void )
 {
 	// Prevent the common HL2DM weapon respawn bug from happening
@@ -413,7 +491,59 @@ void CWeaponHL2MPBase::AddViewmodelBob( CBaseViewModel *viewmodel, Vector &origi
 
 	angles[ YAW ]	-= g_lateralBob  * 0.3f;
 
-	VectorMA( origin, g_lateralBob * 0.2f, right, origin );
+	//VectorMA( origin, g_lateralBob * 0.2f, right, origin );
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Quake 3 bobbing for weapons
+//-----------------------------------------------------------------------------
+void CWeaponHL2MPBase::ClientThink()
+{
+	if ( IsAbsQueriesValid() && m_bQuake3Bob )
+	{
+		// Rotate
+		Quake3Rotate( this, ClientRotAng );
+		Quake3Bob( this, m_vOriginalSpawnOrigin );
+	}
+
+	UpdateGlow();
+
+	SetNextClientThink( CLIENT_THINK_ALWAYS );
+}
+
+//-----------------------------------------------------------------------------
+// Purpose:
+//-----------------------------------------------------------------------------
+void CWeaponHL2MPBase::UpdateGlow()
+{
+    if ( !glow_outline_effect_enable.GetBool() )
+    {
+        if ( IsClientSideGlowEnabled() )
+            SetClientSideGlowEnabled( false );
+
+        return;
+    }
+
+	C_HL2MP_Player* pPlayer = C_HL2MP_Player::GetLocalHL2MPPlayer();
+    if ( pPlayer && GetOwner() == nullptr && pPlayer->GetAbsOrigin().DistToSqr( GetAbsOrigin() ) < ITEM_GLOW_DIST_SQR )
+    {
+        if ( !IsClientSideGlowEnabled() )
+            SetClientSideGlowEnabled( true );
+    }
+    else
+    {
+        SetClientSideGlowEnabled( false );
+    }
+}
+
+//-----------------------------------------------------------------------------
+// Purpose:
+//-----------------------------------------------------------------------------
+void CWeaponHL2MPBase::GetGlowEffectColor( float& r, float& g, float& b )
+{
+	r = glow_outline_color_red.GetFloat();
+	g = glow_outline_color_green.GetFloat();
+	b = glow_outline_color_blue.GetFloat();
 }
 
 void UTIL_ClipPunchAngleOffset( QAngle &in, const QAngle &punch, const QAngle &clip )

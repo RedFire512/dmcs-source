@@ -36,7 +36,7 @@
 #define	SIZE_AMMO_AR2_ALTFIRE		1
 
 #define SF_ITEM_START_CONSTRAINED	0x00000001
-
+#define SF_ITEM_DISABLE_BOB			0x00000002
 
 class CItem : public CBaseAnimating, public CDefaultPlayerPickupVPhysics
 {
@@ -54,6 +54,8 @@ public:
 	virtual void ItemTouch( CBaseEntity *pOther );
 	virtual void Materialize( void );
 	virtual bool MyTouch( CBasePlayer *pPlayer ) { return false; };
+
+	virtual void SetupPhysics();
 
 	// Become touchable when we are at rest
 	virtual void OnEntityEvent( EntityEvent_t event, void *pEventData );
@@ -79,7 +81,15 @@ public:
 	float  m_flNextResetCheckTime;
 #endif
 
+	// [Striker] Whether or not the item should bob like Quake 3 Arena.
+	CNetworkVar( bool, m_bQuake3Bob );
+
+	CNetworkVar( Vector, m_vOriginalSpawnOrigin );
+	CNetworkVar( QAngle, m_vOriginalSpawnAngles );
+
 	DECLARE_DATADESC();
+	DECLARE_SERVERCLASS();
+
 protected:
 	virtual void ComeToRest( void );
 	bool		m_bActivateWhenAtRest;
@@ -88,9 +98,6 @@ private:
 	
 	COutputEvent m_OnPlayerTouch;
 	COutputEvent m_OnCacheInteraction;
-	
-	Vector		m_vOriginalSpawnOrigin;
-	QAngle		m_vOriginalSpawnAngles;
 
 	IPhysicsConstraint		*m_pConstraint;
 };

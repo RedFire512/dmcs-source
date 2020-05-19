@@ -1,45 +1,40 @@
-//========= Copyright Valve Corporation, All rights reserved. ============//
+//========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
 //
 // Purpose: 
 //
 // $NoKeywords: $
 //=============================================================================//
-
 #include "cbase.h"
 #include "hud.h"
 #include "hl2mpclientscoreboard.h"
 #include "c_team.h"
 #include "c_playerresource.h"
 #include "c_hl2mp_player.h"
-#include "hl2mp_gamerules.h"
 #include "backgroundpanel.h"
-
+#include "hl2mp_gamerules.h"
 #include <KeyValues.h>
-
 #include <vgui/IScheme.h>
 #include <vgui/ILocalize.h>
 #include <vgui/ISurface.h>
 #include <vgui/IVGui.h>
 #include <vgui_controls/SectionedListPanel.h>
-
 #include "voice_status.h"
+#include "vgui_avatarimage.h"
 
 using namespace vgui;
 
-#define TEAM_MAXCOUNT			5
-
-// id's of sections used in the scoreboard
-enum EScoreboardSections
-{
-	SCORESECTION_FREEFORALL = 1,
-	SCORESECTION_SPECTATOR = 2
-};
-
 //-----------------------------------------------------------------------------
-// Purpose: Konstructor
+// Purpose: Constructor
 //-----------------------------------------------------------------------------
-CHL2MPClientScoreBoardDialog::CHL2MPClientScoreBoardDialog(IViewPort *pViewPort):CClientScoreBoardDialog(pViewPort)
+CHL2MPClientScoreBoardDialog::CHL2MPClientScoreBoardDialog( IViewPort *pViewPort ) : CClientScoreBoardDialog( pViewPort )
 {
+	m_pPlayerListDM = new SectionedListPanel( this, "PlayerListDM" );
+	m_pPlayerCountLabel_DM = new Label( this, "DM_PlayerCount", "" );
+	m_pPingLabel_DM = new Label( this, "DM_Latency", "" );
+
+	ListenForGameEvent( "server_spawn" );
+	SetDialogVariable( "server", "" );
+	SetVisible( false );
 }
 
 //-----------------------------------------------------------------------------
@@ -54,9 +49,6 @@ CHL2MPClientScoreBoardDialog::~CHL2MPClientScoreBoardDialog()
 //-----------------------------------------------------------------------------
 void CHL2MPClientScoreBoardDialog::PaintBackground()
 {
-	m_pPlayerList->SetBgColor( Color(0, 0, 0, 0) );
-	m_pPlayerList->SetBorder(NULL);
-
 	int wide, tall;
 	GetSize( wide, tall );
 
@@ -81,284 +73,391 @@ void CHL2MPClientScoreBoardDialog::ApplySchemeSettings( vgui::IScheme *pScheme )
 {
 	BaseClass::ApplySchemeSettings( pScheme );
 
-	m_bgColor = GetSchemeColor("SectionedListPanel.BgColor", GetBgColor(), pScheme);
+	LoadControlSettings( "Resource/UI/scoreboard.res" );
+
+	m_bgColor = GetSchemeColor( "SectionedListPanel.BgColor", GetBgColor(), pScheme );
 	m_borderColor = pScheme->GetColor( "FgColor", Color( 0, 0, 0, 0 ) );
 
-	SetBgColor( Color(0, 0, 0, 0) );
+	SetBgColor( Color( 0, 0, 0, 0 ) );
 	SetBorder( pScheme->GetBorder( "BaseBorder" ) );
+
+	if ( m_pPlayerListDM )
+	{
+		m_pPlayerListDM->SetImageList( m_pImageList, false );
+		m_pPlayerListDM->SetBgColor( Color( 0, 0, 0, 0 ) );
+		m_pPlayerListDM->SetBorder( NULL );
+		m_pPlayerListDM->SetVisible( false );
+	}
+
+	// turn off the default player list since we have our own
+	if ( m_pPlayerList )
+		m_pPlayerList->SetVisible( false );
+
+	m_pScoreHeader_DM = (Label*)FindChildByName( "DM_ScoreHeader" );
+	m_pDeathsHeader_DM = (Label*)FindChildByName( "DM_DeathsHeader" );
+	m_pPingHeader_DM = (Label*)FindChildByName( "DM_PingHeader" );
+
+	if ( m_pPlayerCountLabel_DM && m_pScoreHeader_DM && m_pDeathsHeader_DM && m_pPingHeader_DM && m_pPingLabel_DM )
+	{
+		m_pPlayerCountLabel_DM->SetFgColor( COLOR_YELLOW );
+		m_pScoreHeader_DM->SetFgColor( COLOR_YELLOW );
+		m_pDeathsHeader_DM->SetFgColor( COLOR_YELLOW );
+		m_pPingHeader_DM->SetFgColor( COLOR_YELLOW );
+		m_pPingLabel_DM->SetFgColor( COLOR_YELLOW );
+	}
+
+	// Store the scoreboard width, for Update();
+	m_iStoredScoreboardWidth = GetWide();
+
+	SetVisible( false );
+	Reset();
 }
 
-
 //-----------------------------------------------------------------------------
-// Purpose: sets up base sections
+// Purpose: Resets the scoreboard panel
 //-----------------------------------------------------------------------------
-void CHL2MPClientScoreBoardDialog::InitScoreboardSections()
+void CHL2MPClientScoreBoardDialog::Reset()
 {
-	m_pPlayerList->SetBgColor( Color(0, 0, 0, 0) );
-	m_pPlayerList->SetBorder(NULL);
-
-	// fill out the structure of the scoreboard
-	AddHeader();
-
-	AddSection( TYPE_TEAM, TEAM_UNASSIGNED );
-	AddSection( TYPE_TEAM, TEAM_SPECTATOR );
+	InitPlayerList( m_pPlayerListDM, TEAM_UNASSIGNED );
 }
 
 //-----------------------------------------------------------------------------
-// Purpose: resets the scoreboard team info
+// Purpose: Used for sorting players
+//-----------------------------------------------------------------------------
+bool CHL2MPClientScoreBoardDialog::HL2MPPlayerSortFunc( vgui::SectionedListPanel *list, int itemID1, int itemID2 )
+{
+	KeyValues *it1 = list->GetItemData( itemID1 );
+	KeyValues *it2 = list->GetItemData( itemID2 );
+	Assert( it1 && it2 );
+
+	// first compare score
+	int v1 = it1->GetInt( "frags" );
+	int v2 = it2->GetInt( "frags" );
+	if ( v1 > v2 )
+		return true;
+	else if ( v1 < v2 )
+		return false;
+
+	// second compare deaths
+	v1 = it1->GetInt( "deaths" );
+	v2 = it2->GetInt( "deaths" );
+	if ( v1 > v2 )
+		return false;
+	else if ( v1 < v2 )
+		return true;
+
+	// if score and deaths are the same, use player index to get deterministic sort
+	int iPlayerIndex1 = it1->GetInt( "playerIndex" );
+	int iPlayerIndex2 = it2->GetInt( "playerIndex" );
+	return ( iPlayerIndex1 > iPlayerIndex2 );
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Inits the player list in a list panel
+//-----------------------------------------------------------------------------
+void CHL2MPClientScoreBoardDialog::InitPlayerList( SectionedListPanel *pPlayerList, int teamNumber )
+{
+	pPlayerList->SetVerticalScrollbar( false );
+	pPlayerList->RemoveAll();
+	pPlayerList->RemoveAllSections();
+	pPlayerList->AddSection( 0, "Players", HL2MPPlayerSortFunc );
+	pPlayerList->SetSectionAlwaysVisible( 0, true );
+	pPlayerList->SetSectionFgColor( 0, Color( 255, 255, 255, 255 ) );
+	pPlayerList->SetBgColor( Color( 0, 0, 0, 0 ) );
+	pPlayerList->SetBorder( NULL );
+
+	// set the section to have the team color
+	if ( teamNumber && GameResources() )
+	{
+		pPlayerList->SetSectionFgColor( 0, GameResources()->GetTeamColor( teamNumber ) );
+	}
+
+	if ( ShowAvatars() )
+	{
+		pPlayerList->AddColumnToSection( 0, "avatar", "", SectionedListPanel::COLUMN_IMAGE | SectionedListPanel::COLUMN_CENTER, m_iAvatarWidth );
+	}
+
+	pPlayerList->AddColumnToSection( 0, "name", "", 0, m_iNameWidth );
+	pPlayerList->AddColumnToSection( 0, "class", "" , 0, m_iClassWidth );
+	pPlayerList->AddColumnToSection( 0, "frags", "", SectionedListPanel::COLUMN_RIGHT, m_iScoreWidth );
+	pPlayerList->AddColumnToSection( 0, "deaths", "", SectionedListPanel::COLUMN_RIGHT, m_iDeathWidth );
+	pPlayerList->AddColumnToSection( 0, "ping", "", SectionedListPanel::COLUMN_RIGHT, m_iPingWidth );
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Updates the dialog
+//-----------------------------------------------------------------------------
+void CHL2MPClientScoreBoardDialog::Update()
+{
+
+	UpdateItemVisibiity();
+	UpdateTeamInfo();
+	UpdatePlayerList();
+	UpdateSpectatorList();
+	MoveToCenterOfScreen();
+
+	// update every second
+	m_fNextUpdateTime = gpGlobals->curtime + 1.0f; 
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Updates information about teams
 //-----------------------------------------------------------------------------
 void CHL2MPClientScoreBoardDialog::UpdateTeamInfo()
 {
-	if ( g_PR == NULL )
-		return;
-
-	int iNumPlayersInGame = 0;
-
-	for ( int j = 1; j <= gpGlobals->maxClients; j++ )
-	{	
-		if ( g_PR->IsConnected( j ) )
-		{
-			iNumPlayersInGame++;
-		}
-	}
-
 	// update the team sections in the scoreboard
-	for ( int i = TEAM_SPECTATOR; i < TEAM_MAXCOUNT; i++ )
-	{
-		wchar_t *teamName = NULL;
-		int sectionID = 0;
-		C_Team *team = GetGlobalTeam(i);
+	int startTeam = TEAM_UNASSIGNED;
 
+	for ( int teamIndex = startTeam; teamIndex <= 2; teamIndex++ )
+	{
+		// Make sure spectator is always skipped here.
+		if ( teamIndex == TEAM_SPECTATOR )
+			continue;
+
+		wchar_t *teamName = NULL;
+		C_Team *team = GetGlobalTeam( teamIndex );
 		if ( team )
 		{
-			sectionID = GetSectionFromTeamNumber( i );
-	
-			// update team name
+			// choose dialog variables to set depending on team
+			const char *pDialogVarTeamScore = NULL;
+			const char *pDialogVarTeamPlayerCount = NULL;
+			const char *pDialogVarTeamPing = NULL;
+
+			switch ( teamIndex ) 
+			{
+				case TEAM_UNASSIGNED:
+					teamName = g_pVGuiLocalize->Find( "#HL2MP_ScoreBoard_DM" );
+					pDialogVarTeamPlayerCount = "dm_playercount";
+					pDialogVarTeamPing = "dm_ping";
+					break;
+				default:
+					Assert( false );
+					break;
+			}
+
+			// update # of players on each team
 			wchar_t name[64];
 			wchar_t string1[1024];
 			wchar_t wNumPlayers[6];
+			_snwprintf( wNumPlayers, ARRAYSIZE( wNumPlayers ), L"%i", team->Get_Number_Players() );
+			if ( !teamName && team )
+			{
+				g_pVGuiLocalize->ConvertANSIToUnicode( team->Get_Name(), name, sizeof( name ) );
+				teamName = name;
+			}
 
-			_snwprintf( wNumPlayers, ARRAYSIZE(wNumPlayers), L"%i", iNumPlayersInGame );
-#ifdef WIN32
-			_snwprintf( name, ARRAYSIZE(name), L"%s", g_pVGuiLocalize->Find("#ScoreBoard_Deathmatch") );
-#else
-			_snwprintf( name, ARRAYSIZE(name), L"%S", g_pVGuiLocalize->Find("#ScoreBoard_Deathmatch") );
-#endif
-				
-			teamName = name;
-
-			if ( iNumPlayersInGame == 1)
-				g_pVGuiLocalize->ConstructString( string1, sizeof(string1), g_pVGuiLocalize->Find("#ScoreBoard_Player"), 2, teamName, wNumPlayers );
+			if ( team->Get_Number_Players() == 1 )
+				g_pVGuiLocalize->ConstructString( string1, sizeof(string1), g_pVGuiLocalize->Find( "#ScoreBoard_Player" ), 2, teamName, wNumPlayers );
 			else
-				g_pVGuiLocalize->ConstructString( string1, sizeof(string1), g_pVGuiLocalize->Find("#ScoreBoard_Players"), 2, teamName, wNumPlayers );
-		
-			m_pPlayerList->ModifyColumn(sectionID, "name", string1);
+				g_pVGuiLocalize->ConstructString( string1, sizeof(string1), g_pVGuiLocalize->Find( "#ScoreBoard_Players" ), 2, teamName, wNumPlayers );
+
+			// set # of players for team in dialog
+			SetDialogVariable( pDialogVarTeamPlayerCount, string1 );
+
+			// set team score in dialog
+			if ( teamIndex != TEAM_UNASSIGNED )	// Don't accumulate deathmatch scores.
+				SetDialogVariable( pDialogVarTeamScore, team->Get_Score() );			
+
+			int pingsum = 0;
+			int numcounted = 0;
+			for( int playerIndex = 1 ; playerIndex <= MAX_PLAYERS; playerIndex++ )
+			{
+				if( g_PR->IsConnected( playerIndex ) && g_PR->GetTeam( playerIndex ) == teamIndex )
+				{
+					int ping = g_PR->GetPing( playerIndex );
+
+					if ( ping >= 1 )
+					{
+						pingsum += ping;
+						numcounted++;
+					}
+				}
+			}
+
+			if ( numcounted > 0 )
+			{
+				int ping = (int)( (float)pingsum / (float)numcounted );
+				SetDialogVariable( pDialogVarTeamPing, ping );		
+			}
+			else
+			{
+				SetDialogVariable( pDialogVarTeamPing, "" );	
+			}
 		}
 	}
 }
 
 //-----------------------------------------------------------------------------
-// Purpose: adds the top header of the scoreboars
+// Purpose: Updates the player list
 //-----------------------------------------------------------------------------
-void CHL2MPClientScoreBoardDialog::AddHeader()
+void CHL2MPClientScoreBoardDialog::UpdatePlayerList()
 {
-	// add the top header
-	m_pPlayerList->AddSection(0, "");
-	m_pPlayerList->SetSectionAlwaysVisible(0);
-	HFont hFallbackFont = scheme()->GetIScheme( GetScheme() )->GetFont( "DefaultVerySmallFallBack", false );
-	m_pPlayerList->AddColumnToSection(0, "name", "", 0, scheme()->GetProportionalScaledValueEx( GetScheme(), CSTRIKE_NAME_WIDTH ), hFallbackFont );
-	m_pPlayerList->AddColumnToSection(0, "frags", "#PlayerScore", 0 | SectionedListPanel::COLUMN_RIGHT, scheme()->GetProportionalScaledValueEx( GetScheme(), CSTRIKE_SCORE_WIDTH ) );
-	m_pPlayerList->AddColumnToSection(0, "deaths", "#PlayerDeath", 0 | SectionedListPanel::COLUMN_RIGHT, scheme()->GetProportionalScaledValueEx( GetScheme(), CSTRIKE_DEATH_WIDTH ) );
-	m_pPlayerList->AddColumnToSection(0, "ping", "#PlayerPing", 0 | SectionedListPanel::COLUMN_RIGHT, scheme()->GetProportionalScaledValueEx( GetScheme(), CSTRIKE_PING_WIDTH ) );
-//	m_pPlayerList->AddColumnToSection(0, "voice", "#PlayerVoice", SectionedListPanel::COLUMN_IMAGE | SectionedListPanel::HEADER_TEXT| SectionedListPanel::COLUMN_CENTER, scheme()->GetProportionalScaledValueEx( GetScheme(), CSTRIKE_VOICE_WIDTH ) );
-//	m_pPlayerList->AddColumnToSection(0, "tracker", "#PlayerTracker", SectionedListPanel::COLUMN_IMAGE | SectionedListPanel::HEADER_TEXT, scheme()->GetProportionalScaledValueEx( GetScheme(), CSTRIKE_FRIENDS_WIDTH ) );
-}
+	m_pPlayerListDM->RemoveAll();
 
-//-----------------------------------------------------------------------------
-// Purpose: Adds a new section to the scoreboard (i.e the team header)
-//-----------------------------------------------------------------------------
-void CHL2MPClientScoreBoardDialog::AddSection(int teamType, int teamNumber)
-{
-	HFont hFallbackFont = scheme()->GetIScheme( GetScheme() )->GetFont( "DefaultVerySmallFallBack", false );
+	C_HL2MP_Player *pLocalPlayer = C_HL2MP_Player::GetLocalHL2MPPlayer();
+	if ( !pLocalPlayer )
+		return;
 
-	int sectionID = GetSectionFromTeamNumber( teamNumber );
-	if ( teamType == TYPE_TEAM )
+	for( int playerIndex = 1 ; playerIndex <= MAX_PLAYERS; playerIndex++ )
 	{
- 		m_pPlayerList->AddSection(sectionID, "", StaticPlayerSortFunc);
-
-		// setup the columns
-		m_pPlayerList->AddColumnToSection(sectionID, "name", "", 0, scheme()->GetProportionalScaledValueEx( GetScheme(), CSTRIKE_NAME_WIDTH ), hFallbackFont );
-		m_pPlayerList->AddColumnToSection(sectionID, "frags", "", SectionedListPanel::COLUMN_RIGHT, scheme()->GetProportionalScaledValueEx( GetScheme(), CSTRIKE_SCORE_WIDTH ) );
-		m_pPlayerList->AddColumnToSection(sectionID, "deaths", "", SectionedListPanel::COLUMN_RIGHT, scheme()->GetProportionalScaledValueEx( GetScheme(), CSTRIKE_DEATH_WIDTH ) );
-		m_pPlayerList->AddColumnToSection(sectionID, "ping", "", SectionedListPanel::COLUMN_RIGHT, scheme()->GetProportionalScaledValueEx( GetScheme(), CSTRIKE_PING_WIDTH ) );
-
-		// set the section to have the team color
-		if ( teamNumber )
+		if( g_PR->IsConnected( playerIndex ) )
 		{
-			if ( GameResources() )
-				m_pPlayerList->SetSectionFgColor(sectionID,  GameResources()->GetTeamColor(teamNumber));
-		}
+			SectionedListPanel *pPlayerList = NULL;
 
-		m_pPlayerList->SetSectionAlwaysVisible(sectionID);
-	}
-	else if ( teamType == TYPE_SPECTATORS )
-	{
-		m_pPlayerList->AddSection(sectionID, "");
-		m_pPlayerList->AddColumnToSection(sectionID, "name", "#Spectators", 0, scheme()->GetProportionalScaledValueEx( GetScheme(), CSTRIKE_NAME_WIDTH ), hFallbackFont );
-		m_pPlayerList->AddColumnToSection(sectionID, "class", "" , 0, scheme()->GetProportionalScaledValueEx( GetScheme(), 100 ) );
+			pPlayerList = m_pPlayerListDM;
+
+			if ( pPlayerList == NULL )
+				continue;			
+
+			KeyValues *pKeyValues = new KeyValues( "data" );
+			GetPlayerScoreInfo( playerIndex, pKeyValues );
+
+			int itemID = pPlayerList->AddItem( 0, pKeyValues );
+			Color clr = g_PR->GetTeamColor( g_PR->GetTeam( playerIndex ) );
+			pPlayerList->SetItemFgColor( itemID, clr );
+
+			pKeyValues->deleteThis();
+		}
 	}
 }
 
-int CHL2MPClientScoreBoardDialog::GetSectionFromTeamNumber( int teamNumber )
+//-----------------------------------------------------------------------------
+// Purpose: Updates the spectator list
+//-----------------------------------------------------------------------------
+void CHL2MPClientScoreBoardDialog::UpdateSpectatorList()
 {
-	switch ( teamNumber )
+	C_HL2MP_Player *pLocalPlayer = C_HL2MP_Player::GetLocalHL2MPPlayer();
+	if ( !pLocalPlayer )
+		return;
+
+	char szSpectatorList[512] = "" ;
+	int nSpectators = 0;
+	for( int playerIndex = 1 ; playerIndex <= MAX_PLAYERS; playerIndex++ )
 	{
-	case TEAM_SPECTATOR:
-		return SCORESECTION_SPECTATOR;
-	default:
-		return SCORESECTION_FREEFORALL;
+		if ( ShouldShowAsSpectator( playerIndex ) )
+		{
+			if ( nSpectators > 0 )
+			{
+				Q_strncat( szSpectatorList, ", ", ARRAYSIZE( szSpectatorList ) );
+			}
+
+			Q_strncat( szSpectatorList, g_PR->GetPlayerName( playerIndex ), ARRAYSIZE( szSpectatorList ) );
+			nSpectators++;
+		}
 	}
-	return SCORESECTION_FREEFORALL;
+
+	wchar_t wzSpectators[512] = L"";
+	if ( nSpectators > 0 )
+	{
+		const char *pchFormat = ( 1 == nSpectators ? "#ScoreBoard_Spectator" : "#ScoreBoard_Spectators" );
+
+		wchar_t wzSpectatorCount[16];
+		wchar_t wzSpectatorList[1024];
+		_snwprintf( wzSpectatorCount, ARRAYSIZE( wzSpectatorCount ), L"%i", nSpectators );
+		g_pVGuiLocalize->ConvertANSIToUnicode( szSpectatorList, wzSpectatorList, sizeof( wzSpectatorList ) );
+		g_pVGuiLocalize->ConstructString( wzSpectators, sizeof(wzSpectators), g_pVGuiLocalize->Find( pchFormat), 2, wzSpectatorCount, wzSpectatorList );
+	}
+
+	SetDialogVariable( "spectators", wzSpectators );
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Returns whether the specified player index is a spectator
+//-----------------------------------------------------------------------------
+bool CHL2MPClientScoreBoardDialog::ShouldShowAsSpectator( int iPlayerIndex )
+{
+	// see if player is connected
+	if ( g_PR->IsConnected( iPlayerIndex ) ) 
+	{
+		// spectators show in spectator list
+		int iTeam = g_PR->GetTeam( iPlayerIndex );
+
+		// In team play the DM playerlist is invisible, so show unassigned in the spectator list.
+		if ( HL2MPRules()->IsTeamplay() && TEAM_UNASSIGNED == iTeam )
+			return true;
+
+		if ( TEAM_SPECTATOR == iTeam )
+			return true;
+	}
+	return false;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Event handler
+//-----------------------------------------------------------------------------
+void CHL2MPClientScoreBoardDialog::FireGameEvent( IGameEvent *event )
+{
+	const char *type = event->GetName();
+
+	if ( 0 == Q_strcmp( type, "server_spawn" ) )
+	{		
+		// set server name in scoreboard
+		const char *hostname = event->GetString( "hostname" );
+		wchar_t wzHostName[256];
+		wchar_t wzServerLabel[256];
+		g_pVGuiLocalize->ConvertANSIToUnicode( hostname, wzHostName, sizeof( wzHostName ) );
+		g_pVGuiLocalize->ConstructString( wzServerLabel, sizeof(wzServerLabel), g_pVGuiLocalize->Find( "#Scoreboard_Server" ), 1, wzHostName );
+		SetDialogVariable( "server", wzServerLabel );
+	}
+
+	if( IsVisible() )
+	{
+		Update();
+	}
 }
 
 //-----------------------------------------------------------------------------
 // Purpose: Adds a new row to the scoreboard, from the playerinfo structure
 //-----------------------------------------------------------------------------
-bool CHL2MPClientScoreBoardDialog::GetPlayerScoreInfo(int playerIndex, KeyValues *kv)
+bool CHL2MPClientScoreBoardDialog::GetPlayerScoreInfo( int playerIndex, KeyValues *kv )
 {
-	kv->SetInt("playerIndex", playerIndex);
-	kv->SetInt("team", g_PR->GetTeam( playerIndex ) );
-	kv->SetString("name", g_PR->GetPlayerName(playerIndex) );
-	kv->SetInt("deaths", g_PR->GetDeaths( playerIndex ));
-	kv->SetInt("frags", g_PR->GetPlayerScore( playerIndex ));
-	
-	if (g_PR->GetPing( playerIndex ) < 1)
+	// Clean up the player name
+	const char *oldName = g_PR->GetPlayerName( playerIndex );
+	int bufsize = strlen( oldName ) * 2 + 1;
+	char *newName = (char *)_alloca( bufsize );
+	UTIL_MakeSafeName( oldName, newName, bufsize );
+	kv->SetString( "name", newName );
+
+	kv->SetInt( "playerIndex", playerIndex );
+	kv->SetInt( "frags", g_PR->GetPlayerScore( playerIndex ) );
+	kv->SetInt( "deaths", g_PR->GetDeaths( playerIndex ) );
+	kv->SetString( "class", "" );
+
+	UpdatePlayerAvatar( playerIndex, kv );
+
+	if ( g_PR->GetPing( playerIndex ) < 1 )
 	{
 		if ( g_PR->IsFakePlayer( playerIndex ) )
 		{
-			kv->SetString("ping", "BOT");
+			kv->SetString( "ping", "BOT" );
 		}
 		else
 		{
-			kv->SetString("ping", "");
+			kv->SetString( "ping", "" );
 		}
 	}
 	else
 	{
-		kv->SetInt("ping", g_PR->GetPing( playerIndex ));
+		kv->SetInt( "ping", g_PR->GetPing( playerIndex ) );
 	}
-	
+
 	return true;
 }
 
-enum {
-	MAX_PLAYERS_PER_TEAM = 16,
-	MAX_SCOREBOARD_PLAYERS = 32
-};
-struct PlayerScoreInfo
+void CHL2MPClientScoreBoardDialog::UpdateItemVisibiity()
 {
-	int index;
-	int frags;
-	int deaths;
-	bool important;
-	bool alive;
-};
+	// DM Labels _ON_
+	m_pPlayerListDM->SetVisible( true );
+	m_pPlayerCountLabel_DM->SetVisible( true );
+	m_pScoreHeader_DM->SetVisible( true );
+	m_pDeathsHeader_DM->SetVisible( true );
+	m_pPingHeader_DM->SetVisible( true );
+	m_pPingLabel_DM->SetVisible( true );
 
-int PlayerScoreInfoSort( const PlayerScoreInfo *p1, const PlayerScoreInfo *p2 )
-{
-	// check local
-	if ( p1->important )
-		return -1;
-	if ( p2->important )
-		return 1;
-
-	// check alive
-	if ( p1->alive && !p2->alive )
-		return -1;
-	if ( p2->alive && !p1->alive )
-		return 1;
-
-	// check frags
-	if ( p1->frags > p2->frags )
-		return -1;
-	if ( p2->frags > p1->frags )
-		return 1;
-
-	// check deaths
-	if ( p1->deaths < p2->deaths )
-		return -1;
-	if ( p2->deaths < p1->deaths )
-		return 1;
-
-	// check index
-	if ( p1->index < p2->index )
-		return -1;
-
-	return 1;
-}
-
-//-----------------------------------------------------------------------------
-// Purpose: 
-//-----------------------------------------------------------------------------
-void CHL2MPClientScoreBoardDialog::UpdatePlayerInfo()
-{
-	m_iSectionId = 0; // 0'th row is a header
-	int selectedRow = -1;
-	int i;
-
-	CBasePlayer *pPlayer = C_BasePlayer::GetLocalPlayer();
-
-	if ( !pPlayer || !g_PR )
-		return;
-
-	// walk all the players and make sure they're in the scoreboard
-	for ( i = 1; i <= gpGlobals->maxClients; i++ )
-	{
-		bool shouldShow = g_PR->IsConnected( i );
-		if ( shouldShow )
-		{
-			// add the player to the list
-			KeyValues *playerData = new KeyValues("data");
-			GetPlayerScoreInfo( i, playerData );
-			int itemID = FindItemIDForPlayerIndex( i );
-  			int sectionID = GetSectionFromTeamNumber( g_PR->GetTeam( i ) );
-						
-			if (itemID == -1)
-			{
-				// add a new row
-				itemID = m_pPlayerList->AddItem( sectionID, playerData );
-			}
-			else
-			{
-				// modify the current row
-				m_pPlayerList->ModifyItem( itemID, sectionID, playerData );
-			}
-
-			if ( i == pPlayer->entindex() )
-			{
-				selectedRow = itemID;	// this is the local player, hilight this row
-			}
-
-			// set the row color based on the players team
-			m_pPlayerList->SetItemFgColor( itemID, g_PR->GetTeamColor( g_PR->GetTeam( i ) ) );
-
-			playerData->deleteThis();
-		}
-		else
-		{
-			// remove the player
-			int itemID = FindItemIDForPlayerIndex( i );
-			if (itemID != -1)
-			{
-				m_pPlayerList->RemoveItem(itemID);
-			}
-		}
-	}
-
-	if ( selectedRow != -1 )
-	{
-		m_pPlayerList->SetSelectedItem(selectedRow);
-	}
-
-	
+	// Because we have a multi-pane player list, in deathmatch shrink the width of the scoreboard to match the one player list, so it looks nicer.
+	int wide, tall;
+	m_pPlayerListDM->GetContentSize(wide, tall);
+	tall = GetTall();
+	SetSize(wide+4, tall);
+	m_pPlayerListDM->SetSize(wide, tall);
 }

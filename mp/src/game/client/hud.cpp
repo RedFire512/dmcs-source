@@ -378,7 +378,7 @@ CHud gHUD;  // global HUD object
 
 DECLARE_MESSAGE(gHUD, ResetHUD);
 
-#ifdef CSTRIKE_DLL
+#if defined ( CSTRIKE_DLL ) || defined ( DMCS_DLL )
 DECLARE_MESSAGE(gHUD, SendAudio);
 #endif
 
@@ -396,7 +396,7 @@ void CHud::Init( void )
 {
 	HOOK_HUD_MESSAGE( gHUD, ResetHUD );
 	
-#ifdef CSTRIKE_DLL
+#if defined ( CSTRIKE_DLL ) || defined ( DMCS_DLL )
 	HOOK_HUD_MESSAGE( gHUD, SendAudio );
 #endif
 

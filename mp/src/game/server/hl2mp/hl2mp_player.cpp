@@ -1,4 +1,4 @@
-//========= Copyright Valve Corporation, All rights reserved. ============//
+//========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
 //
 // Purpose:		Player for HL2.
 //
@@ -28,6 +28,8 @@
 #include "ilagcompensationmanager.h"
 #include "viewport_panel_names.h"
 #include "filesystem.h"
+#include "nav_mesh.h"
+#include "CRagdollMagnet.h"
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
@@ -36,6 +38,7 @@ ConVar sv_motd_unload_on_dismissal( "sv_motd_unload_on_dismissal", "0", 0, "If e
 
 extern CBaseEntity				*g_pLastSpawn;
 extern ConVar hl2_normspeed;
+extern ConVar sv_respawn_time;
 extern int	gEvilImpulse101;
 
 #define HL2MP_COMMAND_MAX_RATE 0.3
@@ -131,10 +134,10 @@ CHL2MP_Player::CHL2MP_Player()
 
 	m_iSpawnInterpCounter = 0;
 
-	m_bEnterObserver = false;
-
 	m_cycleLatch = 0;
-	m_cycleLatchTimer.Invalidate();	
+	m_cycleLatchTimer.Invalidate();
+
+	SetViewOffset( DMC_PLAYER_VIEW_OFFSET );
 }
 
 CHL2MP_Player::~CHL2MP_Player( void )
@@ -180,8 +183,10 @@ void CHL2MP_Player::GiveAllItems( void )
 {
 	EquipSuit();
 
-	CBasePlayer::GiveAmmo( 255,	"Buckshot");
-	CBasePlayer::GiveAmmo( 3,	"rpg_round");
+	CBasePlayer::GiveAmmo( 255,	"AMMO_SHELLS" );
+	CBasePlayer::GiveAmmo( 255,	"AMMO_NAILS" );
+	CBasePlayer::GiveAmmo( 255,	"AMMO_ROCKETS" );
+	CBasePlayer::GiveAmmo( 255,	"AMMO_CELLS" );
 
 	GiveNamedItem( "weapon_crowbar" );
 	GiveNamedItem( "weapon_shotgun" );
@@ -190,14 +195,14 @@ void CHL2MP_Player::GiveAllItems( void )
 	GiveNamedItem( "weapon_nailgun" );
 	GiveNamedItem( "weapon_supernailgun" );
 	GiveNamedItem( "weapon_grenadelauncher" );
-//	GiveNamedItem( "weapon_lightning" );					
+	GiveNamedItem( "weapon_lightning" );					
 }
 
 void CHL2MP_Player::GiveDefaultItems( void )
 {
 	EquipSuit();
 
-	CBasePlayer::GiveAmmo( 10,	"Buckshot" );
+	CBasePlayer::GiveAmmo( 10,	"AMMO_SHELLS" );
 
 	GiveNamedItem( "weapon_shotgun" );
 	GiveNamedItem( "weapon_crowbar" );
@@ -227,6 +232,9 @@ void CHL2MP_Player::HL2MPPushawayThink(void)
 void CHL2MP_Player::InitialSpawn( void )
 {
 	BaseClass::InitialSpawn();
+
+	if ( !engine->IsDedicatedServer() && TheNavMesh->IsOutOfDate() && this == UTIL_GetListenServerHost() )
+		ClientPrint( this, HUD_PRINTCENTER, "The Navigation Mesh was built using a different version of this map." );
 
 	// open info panel on client showing MOTD:
 	const ConVar *hostname = cvar->FindVar( "hostname" );
@@ -349,11 +357,19 @@ void CHL2MP_Player::PostThink( void )
 
 	// Store the eye angles pitch so the client can compute its animation state correctly.
 	m_angEyeAngles = EyeAngles();
+
 	m_PlayerAnimState->Update( m_angEyeAngles[YAW], m_angEyeAngles[PITCH] );
+
+	if ( IsPlayerUnderwater() && GetWaterLevel() < 3 )
+	{
+		StopSound( "Player.AmbientUnderWater" );
+		SetPlayerUnderwater( false );
+	}
 
 	if ( IsAlive() && m_cycleLatchTimer.IsElapsed() )
 	{
 		m_cycleLatchTimer.Start( CYCLELATCH_UPDATE_INTERVAL );
+		
 		// Compress the cycle into 4 bits. Can represent 0.0625 in steps which is enough.
 		m_cycleLatch.GetForModify() = 16 * GetCycle();
 	}
@@ -361,9 +377,64 @@ void CHL2MP_Player::PostThink( void )
 
 void CHL2MP_Player::PlayerDeathThink()
 {
-	if( !IsObserver() )
+	float flForward;
+
+	SetNextThink( gpGlobals->curtime + 0.1f );
+
+	if ( GetFlags() & FL_ONGROUND )
 	{
-		BaseClass::PlayerDeathThink();
+		flForward = GetAbsVelocity().Length() - 20;
+		if ( flForward <= 0 )
+		{
+			SetAbsVelocity( vec3_origin );
+		}
+		else
+		{
+			Vector vecNewVelocity = GetAbsVelocity();
+			VectorNormalize( vecNewVelocity );
+			vecNewVelocity *= flForward;
+			SetAbsVelocity( vecNewVelocity );
+		}
+	}
+
+	// we drop the guns here because weapons that have an area effect and can kill their user
+	// will sometimes crash coming back from CBasePlayer::Killed() if they kill their owner because the
+	// player class sometimes is freed. It's safer to manipulate the weapons once we know
+	// we aren't calling into any of their code anymore through the player pointer.
+	if ( HasWeapons() )
+		PackDeadPlayerItems();
+
+	if ( GetModelIndex() && !IsSequenceFinished() && (m_lifeState == LIFE_DYING) )
+	{
+		StudioFrameAdvance();
+
+		m_iRespawnFrames++;
+		if ( m_iRespawnFrames < 60 )  // animations should be no longer than this
+			return;
+	}
+
+	if ( m_lifeState == LIFE_DYING )
+	{
+		m_lifeState = LIFE_DEAD;
+		m_flDeathAnimTime = gpGlobals->curtime;
+	}
+	
+	StopAnimation();
+
+	AddEffects( EF_NOINTERP );
+	m_flPlaybackRate = 0.0;
+
+	if ( g_pGameRules->FPlayerCanRespawn( this ) && ( gpGlobals->curtime >= ( m_flDeathTime + DEATH_ANIMATION_TIME + sv_respawn_time.GetInt() ) ) )
+	{
+		m_nButtons = 0;
+		m_iRespawnFrames = 0;
+
+		Spawn();	// respawn the player
+		SetNextThink( TICK_NEVER_THINK );
+	}
+	else if ( ( gpGlobals->curtime >= ( m_flDeathTime + DEATH_ANIMATION_TIME) ) && !IsObserver() )
+	{
+		State_Transition( STATE_OBSERVER_MODE );	// start roaming around as an observer now that we've been dead for a little while
 	}
 }
 
@@ -454,16 +525,17 @@ bool CHL2MP_Player::BumpWeapon( CBaseCombatWeapon *pWeapon )
 	pWeapon->CheckRespawn();
 	Weapon_Equip( pWeapon );
 
+	// Switch to the weapon we just picked up, regardless of its power or worth
+	// Why? Chances are we did so willingly, and if we were actually able to pickup a weapon, we must have not had a weapon of its type or at least not full ammo for it
+	Weapon_Switch( pWeapon );
+
 	return true;
 }
 
 void CHL2MP_Player::ChangeTeam( int iTeam )
 {
-	if ( HL2MPRules()->IsTeamplay() != true && iTeam != TEAM_SPECTATOR )
-	{
-		//don't let them try to join combine or rebels during deathmatch.
-		iTeam = TEAM_UNASSIGNED;
-	}
+	if ( iTeam != TEAM_SPECTATOR )
+		iTeam = TEAM_UNASSIGNED;	// players are not allowed to change teams
 
 	BaseClass::ChangeTeam( iTeam );
 
@@ -472,16 +544,13 @@ void CHL2MP_Player::ChangeTeam( int iTeam )
 	if ( iTeam == TEAM_SPECTATOR )
 	{
 		RemoveAllItems( true );
-
 		State_Transition( STATE_OBSERVER_MODE );
 	}
-
-	CommitSuicide();
 }
 
 bool CHL2MP_Player::HandleCommand_JoinTeam( int team )
 {
-	if ( !GetGlobalTeam( team ) || team == 0 )
+	if ( !GetGlobalTeam( team ) || (team == 0) )
 	{
 		Warning( "HandleCommand_JoinTeam( %d ) - invalid team index.\n", team );
 		return false;
@@ -496,14 +565,10 @@ bool CHL2MP_Player::HandleCommand_JoinTeam( int team )
 			return false;
 		}
 
-		if ( GetTeamNumber() != TEAM_UNASSIGNED && !IsDead() )
+		if ( !IsDead() )
 		{
 			m_fNextSuicideTime = gpGlobals->curtime;	// allow the suicide to work
-
 			CommitSuicide();
-
-			// add 1 to frags to balance out the 1 subtracted for killing yourself
-			IncrementFragCount( 1 );
 		}
 
 		ChangeTeam( TEAM_SPECTATOR );
@@ -513,7 +578,7 @@ bool CHL2MP_Player::HandleCommand_JoinTeam( int team )
 	else
 	{
 		StopObserverMode();
-		State_Transition(STATE_ACTIVE);
+		State_Transition( STATE_ACTIVE );
 	}
 
 	// Switch their actual team...
@@ -737,21 +802,19 @@ void CHL2MP_Player::FlashlightTurnOff( void )
 void CHL2MP_Player::Event_Killed( const CTakeDamageInfo &info )
 {
 	// show killer in death cam mode
-	// chopped down version of SetObserverTarget without the team check
-	if( info.GetAttacker() && info.GetAttacker()->IsPlayer() )
-	{
-		// set new target
-		m_hObserverTarget.Set( info.GetAttacker() ); 
-
-		// reset fov to default
-		SetFOV( this, 0 );
-	}
+	if( IsValidObserverTarget( info.GetAttacker() ) )
+		SetObserverTarget( info.GetAttacker() );
 	else
-		m_hObserverTarget.Set( NULL );
+		ResetObserverMode();
 
 	//update damage info with our accumulated physics force
 	CTakeDamageInfo subinfo = info;
 	subinfo.SetDamageForce( m_vecTotalBulletForce );
+
+	// See if there's a ragdoll magnet that should influence our force.
+	CRagdollMagnet *pMagnet = CRagdollMagnet::FindBestMagnet( this );
+	if( pMagnet )
+		m_vecTotalBulletForce += pMagnet->GetForceVector( this );
 
 	// Note: since we're dead, it won't draw us on the client, but we don't set EF_NODRAW
 	// because we still want to transmit to the clients in our PVS.
@@ -763,6 +826,13 @@ void CHL2MP_Player::Event_Killed( const CTakeDamageInfo &info )
 	{
 		if ( m_hRagdoll )
 			m_hRagdoll->GetBaseAnimating()->Dissolve( NULL, gpGlobals->curtime, false, ENTITY_DISSOLVE_NORMAL );
+	}
+
+	auto *pAttackerPlayer = ToHL2MPPlayer( info.GetAttacker() );
+	if ( pAttackerPlayer )
+	{
+		if ( pAttackerPlayer != this )
+			GetGlobalTeam( pAttackerPlayer->GetTeamNumber() )->AddScore( 1 );
 	}
 
 	FlashlightTurnOff();
@@ -787,7 +857,12 @@ void CHL2MP_Player::DeathSound( const CTakeDamageInfo &info )
 	if ( m_hRagdoll && m_hRagdoll->GetBaseAnimating()->IsDissolving() )
 		 return;
 	
-	BaseClass::DeathSound( info );
+	// Did we die from falling?
+	if ( m_bitsDamageType & DMG_FALL )
+		
+		EmitSound( "Player.FallGib" );	// They died in the fall. Play a splat sound.
+	else
+		EmitSound( "Player.Death" );
 }
 
 CBaseEntity* CHL2MP_Player::EntSelectSpawnPoint( void )
@@ -911,18 +986,13 @@ CHL2MPPlayerStateInfo *CHL2MP_Player::State_LookupInfo( HL2MPPlayerState state )
 
 bool CHL2MP_Player::StartObserverMode(int mode)
 {
-	//we only want to go into observer mode if the player asked to, not on a death timeout
-	if ( m_bEnterObserver == true )
-	{
-		VPhysicsDestroyObject();
-		return BaseClass::StartObserverMode( mode );
-	}
-	return false;
+	VPhysicsDestroyObject();
+
+	return BaseClass::StartObserverMode( mode );
 }
 
 void CHL2MP_Player::StopObserverMode()
 {
-	m_bEnterObserver = false;
 	BaseClass::StopObserverMode();
 }
 
@@ -941,7 +1011,7 @@ void CHL2MP_Player::State_Enter_OBSERVER_MODE()
 			}
 		}
 	}
-	m_bEnterObserver = true;
+
 	StartObserverMode( observerMode );
 }
 

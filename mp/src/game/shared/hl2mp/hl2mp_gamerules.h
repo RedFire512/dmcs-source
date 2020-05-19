@@ -1,4 +1,4 @@
-//========= Copyright Valve Corporation, All rights reserved. ============//
+//========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
 //
 // Purpose: 
 //
@@ -54,7 +54,6 @@ public:
 
 	virtual float FlWeaponRespawnTime( CBaseCombatWeapon *pWeapon );
 	virtual float FlWeaponTryRespawn( CBaseCombatWeapon *pWeapon );
-	virtual Vector VecWeaponRespawnSpot( CBaseCombatWeapon *pWeapon );
 	virtual int WeaponShouldRespawn( CBaseCombatWeapon *pWeapon );
 	virtual void Think( void );
 	virtual void CreateStandardEntities( void );
@@ -67,14 +66,15 @@ public:
 	// derive this function if you mod uses encrypted weapon info files
 	virtual const unsigned char *GetEncryptionKey( void ) { return (unsigned char *)"x9Ke0BY7"; }
 
+	// Get the view vectors for this mod.
+	virtual const CViewVectors* GetViewVectors() const;
+
 	float GetMapRemainingTime();
 	void CleanUpMap();
 	void CheckRestartGame();
 	void RestartGame();
 	
 #ifndef CLIENT_DLL
-	virtual Vector VecItemRespawnSpot( CItem *pItem );
-	virtual QAngle VecItemRespawnAngles( CItem *pItem );
 	virtual float	FlItemRespawnTime( CItem *pItem );
 	virtual bool	CanHavePlayerItem( CBasePlayer *pPlayer, CBaseCombatWeapon *pItem );
 
@@ -84,6 +84,16 @@ public:
 	const char *GetChatFormat( bool bTeamOnly, CBasePlayer *pPlayer );
 
 	virtual void EndGameFrame();
+	virtual bool FPlayerCanRespawn( CBasePlayer *pPlayer );;
+
+	// This function allows the server to play a particular sound to a single player or all players in the game
+	void PlayAnnouncementSound( const char *soundName, CBasePlayer *pTargetPlayer );
+
+	void RadiusDamage( const CTakeDamageInfo &info, const Vector &vecSrcIn, float flRadius, int iClassIgnore, bool bIgnoreWorld );
+	virtual void RadiusDamage( const CTakeDamageInfo &info, const Vector &vecSrcIn, float flRadius, int iClassIgnore );
+	virtual int GetAutoAimMode() { return AUTOAIM_NONE; }
+	virtual bool  FlPlayerFallDeathDoesScreenFade( CBasePlayer *pl ) { return false; }
+	virtual bool UseSuicidePenalty() { return false; }
 #endif
 
 	virtual void ClientDisconnected( edict_t *pClient );

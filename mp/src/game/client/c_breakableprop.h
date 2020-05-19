@@ -13,9 +13,17 @@
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
+#ifdef DMCS_DLL
+#include "glowstencil/c_glowbase.h"
+
+class C_BreakableProp : public C_BaseGlowProp
+{
+	typedef C_BaseGlowProp BaseClass;
+#else
 class C_BreakableProp : public C_BaseAnimating
 {
 	typedef C_BaseAnimating BaseClass;
+#endif // DMCS_DLL
 public:
 	DECLARE_CLIENTCLASS();
 

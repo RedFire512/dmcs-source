@@ -1,4 +1,4 @@
-//========= Copyright Valve Corporation, All rights reserved. ============//
+//========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
 //
 // Purpose: Draws the normal TF2 or HL2 HUD.
 //
@@ -18,9 +18,20 @@
 #include "hl2mpclientscoreboard.h"
 #include "hl2mptextwindow.h"
 #include "ienginevgui.h"
+#ifdef GLOWS_ENABLE
+#include "glow_outline_effect.h"
+#include "clienteffectprecachesystem.h"
+#endif // GLOWS_ENABLE
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
+
+#ifdef GLOWS_ENABLE
+CLIENTEFFECT_REGISTER_BEGIN( PrecachePostProcessingEffectsGlow )
+	CLIENTEFFECT_MATERIAL( "dev/glow_color" )
+	CLIENTEFFECT_MATERIAL( "dev/halo_add_to_screen" )
+CLIENTEFFECT_REGISTER_END_CONDITIONAL( engine->GetDXSupportLevel() >= 90 )
+#endif // GLOWS_ENABLE
 
 vgui::HScheme g_hVGuiCombineScheme = 0;
 
@@ -43,31 +54,20 @@ ClientModeHL2MPNormal* GetClientModeHL2MPNormal()
 }
 
 //-----------------------------------------------------------------------------
-// Purpose: this is the viewport that contains all the hud elements
+// CHudViewport implementation
 //-----------------------------------------------------------------------------
-class CHudViewport : public CBaseViewport
+void CHudViewport::ApplySchemeSettings( vgui::IScheme *pScheme )
 {
-private:
-	DECLARE_CLASS_SIMPLE( CHudViewport, CBaseViewport );
+	BaseClass::ApplySchemeSettings( pScheme );
 
-protected:
-	virtual void ApplySchemeSettings( vgui::IScheme *pScheme )
-	{
-		BaseClass::ApplySchemeSettings( pScheme );
+	gHUD.InitColors( pScheme );
 
-		gHUD.InitColors( pScheme );
-
-		SetPaintBackgroundEnabled( false );
-	}
-
-	virtual IViewPortPanel *CreatePanelByName( const char *szPanelName );
-};
-
-int ClientModeHL2MPNormal::GetDeathMessageStartHeight( void )
-{
-	return m_pViewport->GetDeathMessageStartHeight();
+	SetPaintBackgroundEnabled( false );
 }
 
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
 IViewPortPanel* CHudViewport::CreatePanelByName( const char *szPanelName )
 {
 	IViewPortPanel* newpanel = NULL;
@@ -93,7 +93,7 @@ IViewPortPanel* CHudViewport::CreatePanelByName( const char *szPanelName )
 }
 
 //-----------------------------------------------------------------------------
-// ClientModeHLNormal implementation
+// ClientModeHL2MPNormal implementation
 //-----------------------------------------------------------------------------
 ClientModeHL2MPNormal::ClientModeHL2MPNormal()
 {
@@ -101,14 +101,12 @@ ClientModeHL2MPNormal::ClientModeHL2MPNormal()
 	m_pViewport->Start( gameuifuncs, gameeventmanager );
 }
 
-
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
 ClientModeHL2MPNormal::~ClientModeHL2MPNormal()
 {
 }
-
 
 //-----------------------------------------------------------------------------
 // Purpose: 
@@ -128,7 +126,41 @@ void ClientModeHL2MPNormal::Init()
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
+int ClientModeHL2MPNormal::GetDeathMessageStartHeight( void )
+{
+	int x = YRES(2);
+
+	IViewPortPanel *spectator = gViewPortInterface->FindPanelByName( PANEL_SPECGUI );
+
+	//TODO: Link to actual height of spectator bar
+	if ( spectator && spectator->IsVisible() )
+		x += YRES(52);
+
+	return x;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
 bool ClientModeHL2MPNormal::ShouldDrawCrosshair( void )
 {
 	return ( g_bRollingCredits == false );
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+bool ClientModeHL2MPNormal::DoPostScreenSpaceEffects( const CViewSetup *pSetup )
+{
+#ifdef GLOWS_ENABLE
+	CMatRenderContextPtr pRenderContext( materials );
+
+	pRenderContext->PushRenderTargetAndViewport();
+	g_GlowObjectManager.RenderGlowEffects( pSetup, 0 /*GetSplitScreenPlayerSlot()*/ );
+	pRenderContext->PopRenderTargetAndViewport();
+
+	pRenderContext.SafeRelease();
+#endif // GLOWS_ENABLE
+
+	return BaseClass::DoPostScreenSpaceEffects( pSetup );
 }

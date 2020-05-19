@@ -15,7 +15,7 @@ $Configuration
 	$Compiler
 	{
 		$AdditionalIncludeDirectories	"$BASE;$SRCDIR\game\shared\hl2,.\hl2,.\hl2mp,$SRCDIR\game\shared\hl2mp;$SRCDIR\game\shared\Multiplayer,.\bots"
-		$PreprocessorDefinitions		"$BASE;HL2MP;DMCS_DLL;HL2_DLL"
+		$PreprocessorDefinitions		"$BASE;HL2MP;DMCS_DLL;HL2_DLL;GLOWS_ENABLE"
 	}
 }
 
@@ -239,16 +239,6 @@ $Project "Server"
 			}
 		}
 
-		$Folder	"Bots"
-		{
-			$File	"bots\dmc_bot_combat.cpp"
-			$File	"bots\dmc_bot_navigation.cpp"
-			$File	"bots\bot_main.cpp"
-			$File	"bots\bot_main.h"
-			$File	"bots\dmc_bot.cpp"
-			$File	"bots\dmc_bot.h"
-		}
-
 		$Folder	"Deathmatch Classic Source"
 		{
 			$File	"hl2mp\hl2mp_client.cpp"
@@ -268,6 +258,16 @@ $Project "Server"
 			$File	"$SRCDIR\game\shared\hl2\hl2_shareddefs.cpp"
 			$File	"$SRCDIR\game\shared\hl2\hl2_shareddefs.h"
 
+			$Folder	"Bots"
+			{
+				$File	"bots\dmc_bot_combat.cpp"
+				$File	"bots\dmc_bot_navigation.cpp"
+				$File	"bots\bot_main.cpp"
+				$File	"bots\bot_main.h"
+				$File	"bots\dmc_bot.cpp"
+				$File	"bots\dmc_bot.h"
+			}
+
 			$Folder	"Solidd Entities"
 			{
 				$File	"hl2\trigger_super_armor.cpp"
@@ -281,22 +281,29 @@ $Project "Server"
 				$File	"dmc\item_armor.cpp"
 				$File	"dmc\item_health.cpp"
 			}
+			
+			$Folder	"Glow Entities"
+			{
+				$File	"glowstencil\glowbase.cpp"
+				$File	"glowstencil\glowbase.h"
+			}
 		
 			$Folder	"Weapons"
 			{
 				$File	"hl2mp\te_hl2mp_shotgun_shot.cpp"
 				$File	"hl2mp\te_hl2mp_shotgun_shot.h"
-				$File	"hl2mp\projectile_nail.cpp"
-				$File	"hl2mp\projectile_nail.h"
+				$File	"dmc\projectile_nail.cpp"
+				$File	"dmc\projectile_nail.h"
 				$File	"$SRCDIR\game\shared\hl2mp\weapon_crowbar.cpp"
-				$File	"$SRCDIR\game\shared\hl2mp\weapon_shotgun.cpp"
-				$File	"$SRCDIR\game\shared\hl2mp\weapon_shotgun.h"
-				$File	"$SRCDIR\game\shared\hl2mp\weapon_supershotgun.cpp"
-				$File	"$SRCDIR\game\shared\hl2mp\weapon_nailgun.cpp"
-				$File	"$SRCDIR\game\shared\hl2mp\weapon_supernailgun.cpp"
-				$File	"$SRCDIR\game\shared\hl2mp\weapon_grenadelauncher.cpp"
-				$File	"$SRCDIR\game\shared\hl2mp\weapon_rocketlauncher.cpp"
-				$File	"$SRCDIR\game\shared\hl2mp\weapon_rocketlauncher.h"
+				$File	"$SRCDIR\game\shared\dmc\weapon_shotgun.cpp"
+				$File	"$SRCDIR\game\shared\dmc\weapon_shotgun.h"
+				$File	"$SRCDIR\game\shared\dmc\weapon_supershotgun.cpp"
+				$File	"$SRCDIR\game\shared\dmc\weapon_nailgun.cpp"
+				$File	"$SRCDIR\game\shared\dmc\weapon_supernailgun.cpp"
+				$File	"$SRCDIR\game\shared\dmc\weapon_grenadelauncher.cpp"
+				$File	"$SRCDIR\game\shared\dmc\weapon_rocketlauncher.cpp"
+				$File	"$SRCDIR\game\shared\dmc\weapon_rocketlauncher.h"
+				$File	"$SRCDIR\game\shared\dmc\weapon_lightning.cpp"
 				$File	"$SRCDIR\game\shared\hl2mp\weapon_physcannon.cpp"
 				$File	"$SRCDIR\game\shared\hl2mp\weapon_physcannon.h"
 				$File	"$SRCDIR\game\shared\hl2mp\weapon_hl2mpbase.cpp"
@@ -307,7 +314,6 @@ $Project "Server"
 				$File	"$SRCDIR\game\shared\hl2mp\weapon_hl2mpbasebasebludgeon.h"
 				$File	"$SRCDIR\game\shared\hl2mp\weapon_hl2mpbasehlmpcombatweapon.cpp"
 				$File	"$SRCDIR\game\shared\hl2mp\weapon_hl2mpbasehlmpcombatweapon.h"
-
 			}
 		}
 	}

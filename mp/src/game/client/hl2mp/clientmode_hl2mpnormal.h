@@ -1,4 +1,4 @@
-//========= Copyright Valve Corporation, All rights reserved. ============//
+//========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
 //
 // Purpose: 
 //
@@ -16,12 +16,23 @@
 #include <vgui_controls/EditablePanel.h>
 #include <vgui/Cursor.h>
 
-class CHudViewport;
-
 namespace vgui
 {
 	typedef unsigned long HScheme;
 }
+
+//-----------------------------------------------------------------------------
+// Purpose: this is the viewport that contains all the hud elements
+//-----------------------------------------------------------------------------
+class CHudViewport : public CBaseViewport
+{
+private:
+	DECLARE_CLASS_SIMPLE( CHudViewport, CBaseViewport );
+
+protected:
+	virtual void ApplySchemeSettings( vgui::IScheme *pScheme );
+	virtual IViewPortPanel *CreatePanelByName( const char *szPanelName );
+};
 
 //-----------------------------------------------------------------------------
 // Purpose: 
@@ -37,6 +48,7 @@ public:
 	virtual void	Init();
 	virtual int		GetDeathMessageStartHeight( void );
 	virtual bool	ShouldDrawCrosshair( void );
+	virtual bool	DoPostScreenSpaceEffects( const CViewSetup *pSetup );
 };
 
 extern IClientMode *GetClientModeNormal();

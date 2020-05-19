@@ -285,7 +285,12 @@ void CEntityFlame::FlameThink( void )
 		// Notify anything we're attached to
 		if ( m_hEntAttached )
 		{
-			CBaseCombatCharacter *pAttachedCC = m_hEntAttached->MyCombatCharacterPointer();
+			//CBaseCombatCharacter *pAttachedCC = m_hEntAttached->MyCombatCharacterPointer();
+
+			// [Striker] Fix from https://developer.valvesoftware.com/wiki/SDK_Known_Issues_List#Cannot_re-ignite_entities
+			//Cannot directly cast networked variables
+			CBaseEntity *temp = m_hEntAttached;
+			CBaseCombatCharacter *pAttachedCC = (CBaseCombatCharacter *)temp;
 
 			if( pAttachedCC )
 			{

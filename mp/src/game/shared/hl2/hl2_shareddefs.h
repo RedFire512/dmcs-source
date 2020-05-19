@@ -11,6 +11,15 @@
 
 #include "const.h"
 
+// How far items will glow if players can pick them up.
+#define ITEM_GLOW_DIST_SQR          ( 162.0f * 162.0f )
+
+#define GLOWFLAG_OCCLUDED           ( 1 << 0 )
+#define GLOWFLAG_UNOCCLUDED         ( 1 << 1 )
+#define GLOWFLAG_ALWAYS             ( GLOWFLAG_OCCLUDED | GLOWFLAG_UNOCCLUDED )
+
+#define DMC_PLAYER_VIEW_OFFSET	Vector( 0, 0, 53.5 )
+
 //-----------------------------------------------------------------------------
 // Gamerules.
 //-----------------------------------------------------------------------------

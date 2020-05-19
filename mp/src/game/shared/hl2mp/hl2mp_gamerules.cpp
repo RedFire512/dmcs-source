@@ -1,4 +1,4 @@
-//========= Copyright Valve Corporation, All rights reserved. ============//
+//========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
 //
 // Purpose: 
 //
@@ -41,6 +41,7 @@
 	ConVar sv_weapon_respawn_time( "sv_weapon_respawn_time", "20", FCVAR_GAMEDLL | FCVAR_NOTIFY );
 	ConVar sv_item_respawn_time( "sv_item_respawn_time", "30", FCVAR_GAMEDLL | FCVAR_NOTIFY );
 	ConVar sv_report_client_settings("sv_report_client_settings", "0", FCVAR_GAMEDLL | FCVAR_NOTIFY );
+	ConVar sv_respawn_time( "sv_respawn_time", "5", FCVAR_GAMEDLL | FCVAR_NOTIFY, "Defines the amount of time (in seconds) dead players must wait before they respawn" );
 
 	extern ConVar mp_chattime;
 	extern ConVar tv_delaymapchange;
@@ -49,6 +50,8 @@
 	#define WEAPON_MAX_DISTANCE_FROM_SPAWN 64
 #endif
 
+#pragma warning( disable : 4706 )
+
 REGISTER_GAMERULES_CLASS( CHL2MPRules );
 
 BEGIN_NETWORK_TABLE_NOBASE( CHL2MPRules, DT_HL2MPRules )
@@ -56,6 +59,23 @@ END_NETWORK_TABLE()
 
 LINK_ENTITY_TO_CLASS( hl2mp_gamerules, CHL2MPGameRulesProxy );
 IMPLEMENT_NETWORKCLASS_ALIASED( HL2MPGameRulesProxy, DT_HL2MPGameRulesProxy )
+
+static CViewVectors g_HLViewVectors
+(
+	Vector( 0, 0, 64 ),		// eye position
+
+	Vector(-16, -16, 0 ),	// hull min
+	Vector( 16,  16, 62 ),	// hull max
+
+	Vector(-16, -16, 0 ),	// duck hull min
+	Vector( 16,  16, 45 ),	// duck hull max
+	Vector( 0, 0, 47 ),		// duck view
+
+	Vector(-10, -10, -10 ),	// observer hull min
+	Vector( 10,  10,  10 ),	// observer hull max
+
+	Vector( 0, 0, 14 )		// dead view height
+);
 
 static const char *s_PreserveEnts[] =
 {
@@ -138,9 +158,32 @@ CVoiceGameMgrHelper g_VoiceGameMgrHelper;
 IVoiceGameMgrHelper *g_pVoiceGameMgrHelper = &g_VoiceGameMgrHelper;
 #endif
 
+char *sTeamNames[] =
+{
+	"Unassigned",
+	"Spectator",
+};
+
 CHL2MPRules::CHL2MPRules()
 {
 #ifndef CLIENT_DLL
+	// Create the team managers
+	for ( int i = 0; i < ARRAYSIZE( sTeamNames ); i++ )
+	{
+		CTeam *pTeam = static_cast<CTeam*>( CreateEntityByName( "team_manager" ) );
+		pTeam->Init( sTeamNames[i], i );
+
+		g_Teams.AddToTail( pTeam );
+	}
+
+	if ( filesystem->FileExists( UTIL_VarArgs( "maps/cfg/%s.cfg", STRING( gpGlobals->mapname ) ) ) )
+	{
+		// Execute a map specific cfg file - as in Day of Defeat
+		// Map names cannot contain quotes or control characters so this is safe but silly that we have to do it.
+		engine->ServerCommand( UTIL_VarArgs( "exec \"%s.cfg\" */maps\n", STRING( gpGlobals->mapname ) ) );
+		engine->ServerExecute();
+	}
+
 	m_flIntermissionEndTime = 0.0f;
 	m_flGameStartTime = 0;
 
@@ -154,6 +197,16 @@ CHL2MPRules::CHL2MPRules()
 	
 CHL2MPRules::~CHL2MPRules( void )
 {
+#ifndef CLIENT_DLL
+	// Note, don't delete each team since they are in the gEntList and will 
+	// automatically be deleted from there, instead.
+	g_Teams.Purge();
+#endif
+}
+
+const CViewVectors* CHL2MPRules::GetViewVectors() const
+{
+	return &g_HLViewVectors;
 }
 
 void CHL2MPRules::CreateStandardEntities( void )
@@ -338,22 +391,8 @@ float CHL2MPRules::FlWeaponTryRespawn( CBaseCombatWeapon *pWeapon )
 	return 0;
 }
 
-//=========================================================
-// VecWeaponRespawnSpot - where should this weapon spawn?
-// Some game variations may choose to randomize spawn locations
-//=========================================================
-Vector CHL2MPRules::VecWeaponRespawnSpot( CBaseCombatWeapon *pWeapon )
-{
 #ifndef CLIENT_DLL
-	CWeaponHL2MPBase *pHL2Weapon = dynamic_cast< CWeaponHL2MPBase*>( pWeapon );
-	if ( pHL2Weapon )
-		return pHL2Weapon->GetOriginalSpawnOrigin();
-#endif
-	
-	return pWeapon->GetAbsOrigin();
-}
 
-#ifndef CLIENT_DLL
 CItem* IsManagedObjectAnItem( CBaseEntity *pObject )
 {
 	return dynamic_cast< CItem*>( pObject );
@@ -467,23 +506,6 @@ void CHL2MPRules::RemoveLevelDesignerPlacedObject( CBaseEntity *pEntity )
 }
 
 //=========================================================
-// Where should this item respawn?
-// Some game variations may choose to randomize spawn locations
-//=========================================================
-Vector CHL2MPRules::VecItemRespawnSpot( CItem *pItem )
-{
-	return pItem->GetOriginalSpawnOrigin();
-}
-
-//=========================================================
-// What angles should this item use to respawn?
-//=========================================================
-QAngle CHL2MPRules::VecItemRespawnAngles( CItem *pItem )
-{
-	return pItem->GetOriginalSpawnAngles();
-}
-
-//=========================================================
 // At what time in the future may this Item respawn?
 //=========================================================
 float CHL2MPRules::FlItemRespawnTime( CItem *pItem )
@@ -504,6 +526,150 @@ bool CHL2MPRules::CanHavePlayerItem( CBasePlayer *pPlayer, CBaseCombatWeapon *pI
 	}
 
 	return BaseClass::CanHavePlayerItem( pPlayer, pItem );
+}
+
+//-----------------------------------------------------------------------------
+// Purpose:
+//-----------------------------------------------------------------------------
+void CHL2MPRules::RadiusDamage( const CTakeDamageInfo &info, const Vector &vecSrcIn, float flRadius, int iClassIgnore )
+{
+	RadiusDamage( info, vecSrcIn, flRadius, iClassIgnore, false );
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Add the ability to ignore the world trace
+//-----------------------------------------------------------------------------
+void CHL2MPRules::RadiusDamage( const CTakeDamageInfo &info, const Vector &vecSrcIn, float flRadius, int iClassIgnore, bool bIgnoreWorld )
+{
+	CBaseEntity *pEntity = NULL;
+	trace_t		tr;
+	float		flAdjustedDamage, falloff;
+	Vector		vecSpot;
+	Vector		vecToTarget;
+	Vector		vecEndPos;
+
+	Vector vecSrc = vecSrcIn;
+
+	if ( flRadius )
+		falloff = info.GetDamage() / flRadius;
+	else
+		falloff = 1.0;
+
+	int bInWater = (UTIL_PointContents ( vecSrc ) & MASK_WATER) ? true : false;
+		
+	vecSrc.z += 1;// in case grenade is lying on the ground
+
+	// iterate on all entities in the vicinity.
+	for ( CEntitySphereQuery sphere( vecSrc, flRadius ); pEntity = sphere.GetCurrentEntity(); sphere.NextEntity() )
+	{
+		if ( pEntity->m_takedamage != DAMAGE_NO )
+		{
+			// UNDONE: this should check a damage mask, not an ignore
+			if ( iClassIgnore != CLASS_NONE && pEntity->Classify() == iClassIgnore )
+			{// houndeyes don't hurt other houndeyes with their attack
+				continue;
+			}
+
+			// blast's don't tavel into or out of water
+			if (bInWater && pEntity->GetWaterLevel() == 0)
+				continue;
+			if (!bInWater && pEntity->GetWaterLevel() == 3)
+				continue;
+
+			// radius damage can only be blocked by the world
+			vecSpot = pEntity->BodyTarget( vecSrc );
+
+
+
+			bool bHit = false;
+
+			if( bIgnoreWorld )
+			{
+				vecEndPos = vecSpot;
+				bHit = true;
+			}
+			else
+			{
+				UTIL_TraceLine( vecSrc, vecSpot, MASK_SOLID_BRUSHONLY, info.GetInflictor(), COLLISION_GROUP_NONE, &tr );
+
+				if (tr.startsolid)
+				{
+					// if we're stuck inside them, fixup the position and distance
+					tr.endpos = vecSrc;
+					tr.fraction = 0.0;
+				}
+
+				vecEndPos = tr.endpos;
+
+				if( tr.fraction == 1.0 || tr.m_pEnt == pEntity )
+				{
+					bHit = true;
+				}
+			}
+
+			if ( bHit )
+			{
+				// the explosion can 'see' this entity, so hurt them!
+				//vecToTarget = ( vecSrc - vecEndPos );
+				vecToTarget = ( vecEndPos - vecSrc );
+
+				// decrease damage for an ent that's farther from the bomb.
+				flAdjustedDamage = vecToTarget.Length() * falloff;
+				flAdjustedDamage = info.GetDamage() - flAdjustedDamage;
+				
+				if ( flAdjustedDamage > 0 )
+				{
+					CTakeDamageInfo adjustedInfo = info;
+					adjustedInfo.SetDamage( flAdjustedDamage );
+
+					Vector dir = vecToTarget;
+					VectorNormalize( dir );
+
+					// If we don't have a damage force, manufacture one
+					if ( adjustedInfo.GetDamagePosition() == vec3_origin || adjustedInfo.GetDamageForce() == vec3_origin )
+					{
+						CalculateExplosiveDamageForce( &adjustedInfo, dir, vecSrc, 1.5	/* explosion scale! */ );
+					}
+					else
+					{
+						// Assume the force passed in is the maximum force. Decay it based on falloff.
+						float flForce = adjustedInfo.GetDamageForce().Length() * falloff;
+						adjustedInfo.SetDamageForce( dir * flForce );
+						adjustedInfo.SetDamagePosition( vecSrc );
+					}
+
+					pEntity->TakeDamage( adjustedInfo );
+			
+					// Now hit all triggers along the way that respond to damage... 
+					pEntity->TraceAttackToTriggers( adjustedInfo, vecSrc, vecEndPos, dir );
+				}
+			}
+		}
+	}
+}
+
+void CHL2MPRules::PlayAnnouncementSound( const char *soundName, CBasePlayer *pTargetPlayer = NULL )
+{
+	CRecipientFilter filter;
+
+	if ( pTargetPlayer )	// target player defined, play sound only for specified player
+		filter.AddRecipient( pTargetPlayer );
+	else	// no target player defined, play sound for all players
+		filter.AddAllPlayers();
+
+	filter.MakeReliable();
+
+	UserMessageBegin( filter, "SendAudio" );
+	WRITE_STRING( soundName );
+	MessageEnd();
+}
+
+bool CHL2MPRules::FPlayerCanRespawn( CBasePlayer *pPlayer )
+{
+	if ( g_fGameOver )
+		return false;
+
+	return true;
 }
 #endif
 
@@ -534,9 +700,7 @@ void CHL2MPRules::ClientDisconnected( edict_t *pClient )
 	{
 		// Remove the player from his team
 		if ( pPlayer->GetTeam() )
-		{
 			pPlayer->GetTeam()->RemovePlayer( pPlayer );
-		}
 	}
 
 	BaseClass::ClientDisconnected( pClient );

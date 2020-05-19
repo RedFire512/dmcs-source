@@ -143,7 +143,12 @@ namespace vgui2
 #if defined USES_ECON_ITEMS
 #define BASECOMBATWEAPON_DERIVED_FROM		CEconEntity
 #else 
+#if defined( CLIENT_DLL ) && defined( DMCS_DLL )
+#include "glowstencil/c_glowbase.h"
+#define BASECOMBATWEAPON_DERIVED_FROM		C_BaseGlowEntity
+#else
 #define BASECOMBATWEAPON_DERIVED_FROM		CBaseAnimating
+#endif // CLIENT_DLL && DMCS_DLL
 #endif 
 
 //-----------------------------------------------------------------------------
@@ -635,8 +640,11 @@ public:
 
 private:
 	WEAPON_FILE_INFO_HANDLE	m_hWeaponFileInfo;
+
+public:
 	IPhysicsConstraint		*m_pConstraint;
 
+private:
 	int						m_iAltFireHudHintCount;		// How many times has this weapon displayed its alt-fire HUD hint?
 	int						m_iReloadHudHintCount;		// How many times has this weapon displayed its reload HUD hint?
 	bool					m_bAltFireHudHintDisplayed;	// Have we displayed an alt-fire HUD hint since this weapon was deployed?

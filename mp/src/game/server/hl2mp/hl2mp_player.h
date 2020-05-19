@@ -1,4 +1,4 @@
-//========= Copyright Valve Corporation, All rights reserved. ============//
+//========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
 //
 // Purpose: 
 //
@@ -140,8 +140,6 @@ private:
 
 	HL2MPPlayerState m_iPlayerState;
 	CHL2MPPlayerStateInfo *m_pCurStateInfo;
-
-	bool m_bEnterObserver;
 
 	CNetworkVar( int, m_cycleLatch ); // Network the cycle to clients periodically
 	CountdownTimer m_cycleLatchTimer;

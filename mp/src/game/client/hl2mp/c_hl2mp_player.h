@@ -1,4 +1,4 @@
-//========= Copyright Valve Corporation, All rights reserved. ============//
+//========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
 //
 // Purpose: 
 //
@@ -59,8 +59,6 @@ public:
 	virtual int DrawModel( int flags );
 	virtual void AddEntity( void );
 
-	virtual void ProcessMuzzleFlashEvent();	// This is called to do the actual muzzle flash effect.
-
 	Vector GetAttackSpread( CBaseCombatWeapon *pWeapon, CBaseEntity *pTarget = NULL );
 
 
@@ -83,6 +81,7 @@ public:
 	virtual void PreThink( void );
 	virtual void DoImpactEffect( trace_t &tr, int nDamageType );
 	IRagdoll* GetRepresentativeRagdoll() const;
+	virtual void CalcView( Vector &eyeOrigin, QAngle &eyeAngles, float &zNear, float &zFar, float &fov );
 	virtual void CalcVehicleView( IClientVehicle* pVehicle, Vector& eyeOrigin, QAngle& eyeAngles, float& zNear, float& zFar, float& fov);
 	virtual void CalcPlayerView( Vector& eyeOrigin, QAngle& eyeAngles, float& fov);
 	virtual void CalcViewRoll( QAngle& eyeAngles );
@@ -91,7 +90,6 @@ public:
 	virtual const QAngle& EyeAngles( void );
 
 	void	UpdateLookAt( void );
-	void	Initialize( void );
 	int		GetIDTarget() const;
 	void	UpdateIDTarget( void );
 

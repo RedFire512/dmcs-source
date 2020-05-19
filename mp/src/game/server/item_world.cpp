@@ -109,6 +109,12 @@ BEGIN_DATADESC( CItem )
 
 END_DATADESC()
 
+IMPLEMENT_SERVERCLASS_ST( CItem, DT_Item )
+	SendPropBool( SENDINFO( m_bQuake3Bob ) ),
+	SendPropVector( SENDINFO( m_vOriginalSpawnOrigin ) ),
+	SendPropVector( SENDINFO( m_vOriginalSpawnAngles ) ),
+	//SendPropExclude( "DT_BaseEntity", "m_angRotation" ),
+END_SEND_TABLE()
 
 //-----------------------------------------------------------------------------
 // Constructor 
@@ -116,10 +122,13 @@ END_DATADESC()
 CItem::CItem()
 {
 	m_bActivateWhenAtRest = false;
+	m_bQuake3Bob = true;
 }
 
 bool CItem::CreateItemVPhysicsObject( void )
 {
+	VPhysicsDestroyObject();
+
 	// Create the object in the physics system
 	int nSolidFlags = GetSolidFlags() | FSOLID_NOT_STANDABLE;
 	if ( !m_bActivateWhenAtRest )
@@ -171,36 +180,9 @@ void CItem::Spawn( void )
 	CollisionProp()->UseTriggerBounds( true, ITEM_PICKUP_BOX_BLOAT );
 	SetTouch(&CItem::ItemTouch);
 
-	if ( CreateItemVPhysicsObject() == false )
-		return;
-
 	m_takedamage = DAMAGE_EVENTS_ONLY;
 
-#if !defined( CLIENT_DLL )
-	// Constrained start?
-	if ( HasSpawnFlags( SF_ITEM_START_CONSTRAINED ) )
-	{
-		//Constrain the weapon in place
-		IPhysicsObject *pReferenceObject, *pAttachedObject;
-
-		pReferenceObject = g_PhysWorldObject;
-		pAttachedObject = VPhysicsGetObject();
-
-		if ( pReferenceObject && pAttachedObject )
-		{
-			constraint_fixedparams_t fixed;
-			fixed.Defaults();
-			fixed.InitWithCurrentObjectState( pReferenceObject, pAttachedObject );
-
-			fixed.constraint.forceLimit	= lbs2kg( 10000 );
-			fixed.constraint.torqueLimit = lbs2kg( 10000 );
-
-			m_pConstraint = physenv->CreateFixedConstraint( pReferenceObject, pAttachedObject, NULL, fixed );
-
-			m_pConstraint->SetGameData( (void *) this );
-		}
-	}
-#endif //CLIENT_DLL
+	SetupPhysics();
 
 #if defined( HL2MP ) || defined( TF_DLL )
 	SetThink( &CItem::FallThink );
@@ -231,16 +213,10 @@ extern int gEvilImpulse101;
 //-----------------------------------------------------------------------------
 void CItem::ActivateWhenAtRest( float flTime /* = 0.5f */ )
 {
-	// Andrew; This doesn't work, default to HL2MP spawn behavior.
-#if !defined( HL2MP )
 	RemoveSolidFlags( FSOLID_TRIGGER );
 	m_bActivateWhenAtRest = true;
 	SetThink( &CItem::ComeToRest );
 	SetNextThink( gpGlobals->curtime + flTime );
-#else
-	SetThink( &CItem::FallThink );
-	SetNextThink( gpGlobals->curtime + 0.1f );
-#endif
 }
 
 
@@ -278,6 +254,53 @@ void CItem::ComeToRest( void )
 	}
 }
 
+//-----------------------------------
+// [Striker] Sets up item physics.
+//-----------------------------------
+void CItem::SetupPhysics()
+{
+	if ( !HasSpawnFlags( SF_ITEM_DISABLE_BOB ) )
+	{
+		//m_bQuake3Bob = true;
+		VPhysicsDestroyObject();
+		SetMoveType( MOVETYPE_NONE );
+		SetSolid( SOLID_NONE );
+		AddSolidFlags( GetSolidFlags() | FSOLID_NOT_STANDABLE | FSOLID_TRIGGER );
+		return;
+	}
+
+	m_bQuake3Bob = false;
+
+	if ( !CreateItemVPhysicsObject() )
+		return;
+
+	// Constrained start?
+	if ( HasSpawnFlags( SF_ITEM_START_CONSTRAINED ) )
+	{
+		//Constrain the item in place
+		IPhysicsObject *pReferenceObject, *pAttachedObject;
+
+		pReferenceObject = g_PhysWorldObject;
+		pAttachedObject = VPhysicsGetObject();
+
+		if ( pReferenceObject && pAttachedObject )
+		{
+			constraint_fixedparams_t fixed;
+			fixed.Defaults();
+			fixed.InitWithCurrentObjectState( pReferenceObject, pAttachedObject );
+
+			fixed.constraint.forceLimit = lbs2kg( 10000 );
+			fixed.constraint.torqueLimit = lbs2kg( 10000);
+
+			m_pConstraint = physenv->CreateFixedConstraint( pReferenceObject, pAttachedObject, NULL, fixed );
+
+			m_pConstraint->SetGameData( (void *) this );
+
+			PhysSetGameFlags( pAttachedObject, FVPHYSICS_NO_PLAYER_PICKUP );
+		}
+	}
+}
+
 #if defined( HL2MP ) || defined( TF_DLL )
 
 //-----------------------------------------------------------------------------
@@ -299,7 +322,7 @@ void CItem::FallThink ( void )
 	}
 	else
 	{
-		shouldMaterialize = (GetFlags() & FL_ONGROUND) ? true : false;
+		shouldMaterialize = true;
 	}
 
 	if ( shouldMaterialize )
@@ -478,9 +501,10 @@ CBaseEntity* CItem::Respawn( void )
 	UTIL_SetOrigin( this, g_pGameRules->VecItemRespawnSpot( this ) );// blip to whereever you should respawn.
 	SetAbsAngles( g_pGameRules->VecItemRespawnAngles( this ) );// set the angles.
 
-#if !defined( TF_DLL )
-	UTIL_DropToFloor( this, MASK_SOLID );
-#endif
+	if ( !HasSpawnFlags( SF_ITEM_START_CONSTRAINED ) && HasSpawnFlags( SF_ITEM_DISABLE_BOB ) )
+	{
+		UTIL_DropToFloor( this, MASK_SOLID );
+	}
 
 	RemoveAllDecals(); //remove any decals
 
@@ -491,7 +515,7 @@ CBaseEntity* CItem::Respawn( void )
 
 void CItem::Materialize( void )
 {
-	CreateItemVPhysicsObject();
+	SetupPhysics();
 
 	if ( IsEffectActive( EF_NODRAW ) )
 	{

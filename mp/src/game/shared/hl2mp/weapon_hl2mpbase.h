@@ -1,4 +1,4 @@
-//========= Copyright Valve Corporation, All rights reserved. ============//
+//========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
 //
 // Purpose: 
 //
@@ -13,6 +13,8 @@
 #include "hl2mp_player_shared.h"
 #include "basecombatweapon_shared.h"
 #include "hl2mp_weapon_parse.h"
+
+#define SF_WEAPON_DISABLE_BOB		(1<<3)	// Disable Quake Like Weapon Bob
 
 #if defined( CLIENT_DLL )
 	#define CWeaponHL2MPBase C_WeaponHL2MPBase
@@ -46,6 +48,8 @@ public:
 	// All predicted weapons need to implement and return true
 	virtual bool IsPredicted() const { return true; }
 
+	virtual void Equip( CBaseCombatCharacter *pOwner );
+
 	CBasePlayer* GetPlayerOwner() const;
 	CHL2MP_Player* GetHL2MPPlayerOwner() const;
 
@@ -75,11 +79,19 @@ public:
 	
 public:
 #if defined( CLIENT_DLL )
+	void ClientThink( void );
 	virtual bool ShouldPredict();
 	virtual void OnDataChanged( DataUpdateType_t type );
 	virtual void AddViewmodelBob( CBaseViewModel *viewmodel, Vector &origin, QAngle &angles );
 	virtual	float CalcViewmodelBob( void );
+
+    virtual void GetGlowEffectColor( float& r, float& g, float& b ) OVERRIDE;
+    void UpdateGlow();
+    virtual bool GlowOccluded() OVERRIDE { return false; }
+    virtual bool GlowUnoccluded() OVERRIDE { return true; }
 #else
+	CBaseEntity *Respawn( void );						// copy a weapon
+	virtual void SetupPhysics( void );
 	virtual void Materialize( void );
 	virtual	int	ObjectCaps( void );
 	virtual void FallThink( void );						// make the weapon fall to the ground after spawning
@@ -88,15 +100,19 @@ public:
 	float m_flPrevAnimTime;
 	float m_flNextResetCheckTime;
 
-	Vector	GetOriginalSpawnOrigin( void ) { return m_vOriginalSpawnOrigin;	}
-	QAngle	GetOriginalSpawnAngles( void ) { return m_vOriginalSpawnAngles;	}
+	CNetworkVar( bool, m_bQuake3Bob);
+	CNetworkVar( Vector, m_vOriginalSpawnOrigin );
+	CNetworkVar( QAngle, m_vOriginalSpawnAngles );
+	Vector	GetOriginalSpawnOrigin( void ) { return m_vOriginalSpawnOrigin; }
+	QAngle	GetOriginalSpawnAngles( void ) { return m_vOriginalSpawnAngles; }
+	
+private:
+
+	QAngle ClientRotAng; // m_angRotation is stomped sometimes (CDMCItem returning the ent to spawn position?)
 
 private:
 
 	CWeaponHL2MPBase( const CWeaponHL2MPBase & );
-
-	Vector m_vOriginalSpawnOrigin;
-	QAngle m_vOriginalSpawnAngles;
 };
 
 #endif // WEAPON_HL2MPBASE_H

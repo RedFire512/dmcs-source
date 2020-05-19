@@ -1,4 +1,4 @@
-//========= Copyright Valve Corporation, All rights reserved. ============//
+//========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
 //
 // Purpose:		Player for HL2.
 //
@@ -284,32 +284,6 @@ int C_HL2MP_Player::DrawModel( int flags )
 		return 0;
 
 	return BaseClass::DrawModel(flags);
-}
-
-//-----------------------------------------------------------------------------
-// Purpose: 
-//-----------------------------------------------------------------------------
-void C_HL2MP_Player::ProcessMuzzleFlashEvent()
-{
-	//FIXME: We should really use a named attachment for this
-	if ( m_Attachments.Count() > 0 )
-	{
-		Vector vAttachment, vAng;
-		QAngle angles;
-
-		GetAttachment( 1, vAttachment, angles ); // set 1 instead "attachment"
-		AngleVectors( angles, &vAng );
-		vAttachment += vAng * 2;
-		
-		dlight_t *dl = effects->CL_AllocDlight ( index );
-		dl->origin = vAttachment;
-		dl->color.r = 252;
-		dl->color.g = 238;
-		dl->color.b = 128;
-		dl->die = gpGlobals->curtime + 0.05f;
-		dl->radius = random->RandomFloat( 245.0f, 256.0f );
-		dl->decay = 512.0f;
-	}
 }
 
 //-----------------------------------------------------------------------------
@@ -668,6 +642,48 @@ C_BaseAnimating *C_HL2MP_Player::BecomeRagdollOnClient()
 	return NULL;
 }
 
+void C_HL2MP_Player::CalcView( Vector &eyeOrigin, QAngle &eyeAngles, float &zNear, float &zFar, float &fov )
+{
+	if ( m_lifeState != LIFE_ALIVE && !IsObserver() )
+	{
+		Vector origin = EyePosition();			
+
+		IRagdoll *pRagdoll = GetRepresentativeRagdoll();
+
+		if ( pRagdoll )
+		{
+			origin = pRagdoll->GetRagdollOrigin();
+			origin.z += VEC_DEAD_VIEWHEIGHT_SCALED( this ).z; // look over ragdoll, not through
+		}
+
+		BaseClass::CalcView( eyeOrigin, eyeAngles, zNear, zFar, fov );
+
+		eyeOrigin = origin;
+		
+		Vector vForward; 
+		AngleVectors( eyeAngles, &vForward );
+
+		VectorNormalize( vForward );
+		VectorMA( origin, -CHASE_CAM_DISTANCE_MAX, vForward, eyeOrigin );
+
+		Vector WALL_MIN( -WALL_OFFSET, -WALL_OFFSET, -WALL_OFFSET );
+		Vector WALL_MAX( WALL_OFFSET, WALL_OFFSET, WALL_OFFSET );
+
+		trace_t trace; // clip against world
+		C_BaseEntity::PushEnableAbsRecomputations( false ); // HACK don't recompute positions while doing RayTrace
+		UTIL_TraceHull( origin, eyeOrigin, WALL_MIN, WALL_MAX, MASK_SOLID_BRUSHONLY, this, COLLISION_GROUP_NONE, &trace );
+		C_BaseEntity::PopEnableAbsRecomputations();
+
+		if (trace.fraction < 1.0)
+		{
+			eyeOrigin = trace.endpos;
+		}
+		
+		return;
+	}
+
+	BaseClass::CalcView( eyeOrigin, eyeAngles, zNear, zFar, fov );
+}
 
 //-----------------------------------------------------------------------------
 // Purpose: HL1's view bob, roll and idle effects.

@@ -1014,7 +1014,7 @@ ConVarRef suitcharger( "sk_suitcharger" );
 	//=========================================================
 	Vector CMultiplayRules::VecItemRespawnSpot( CItem *pItem )
 	{
-		return pItem->GetAbsOrigin();
+		return pItem->GetOriginalSpawnOrigin();
 	}
 
 	//=========================================================
@@ -1022,7 +1022,7 @@ ConVarRef suitcharger( "sk_suitcharger" );
 	//=========================================================
 	QAngle CMultiplayRules::VecItemRespawnAngles( CItem *pItem )
 	{
-		return pItem->GetAbsAngles();
+		return pItem->GetOriginalSpawnAngles();
 	}
 
 	//=========================================================
@@ -1100,13 +1100,9 @@ ConVarRef suitcharger( "sk_suitcharger" );
 
 	bool CMultiplayRules::PlayFootstepSounds( CBasePlayer *pl )
 	{
-		if ( footsteps.GetInt() == 0 )
-			return false;
+		// [Striker] Stubbed. Has no use anymore.
 
-		if ( pl->IsOnLadder() || pl->GetAbsVelocity().Length2D() > 220 )
-			return true;  // only make step sounds in multiplayer if the player is moving fast enough
-
-		return false;
+		return true;
 	}
 
 	bool CMultiplayRules::FAllowFlashlight( void ) 

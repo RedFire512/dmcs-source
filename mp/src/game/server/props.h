@@ -22,9 +22,16 @@
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
+#ifdef DMCS_DLL
+#include "glowstencil/glowbase.h"
+class CBaseProp : public CBaseGlowProp
+{
+	DECLARE_CLASS( CBaseProp, CBaseGlowProp );
+#else
 class CBaseProp : public CBaseAnimating
 {
 	DECLARE_CLASS( CBaseProp, CBaseAnimating );
+#endif // DMCS_DLL
 public:
 
 	void Spawn( void );

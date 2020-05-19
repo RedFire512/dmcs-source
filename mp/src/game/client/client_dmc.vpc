@@ -14,7 +14,7 @@ $Configuration
 	$Compiler
 	{
 		$AdditionalIncludeDirectories		"$BASE;.\hl2mp\ui,.\hl2mp,$SRCDIR\game\shared\hl2mp,.\hl2,.\hl2\elements,$SRCDIR\game\shared\hl2;$SRCDIR\game\shared\Multiplayer"
-		$PreprocessorDefinitions			"$BASE;HL2MP;DMCS_DLL;HL2_CLIENT_DLL"
+		$PreprocessorDefinitions			"$BASE;HL2MP;DMCS_DLL;HL2_CLIENT_DLL;GLOWS_ENABLE"
 	}
 }
 
@@ -124,19 +124,32 @@ $Project "Client"
 			$File	"$SRCDIR\game\shared\hl2\hl2_shareddefs.cpp"
 			$File	"$SRCDIR\game\shared\hl2\hl2_shareddefs.h"
 
+			$Folder	"Glow Entities"
+			{
+				$File	"glowstencil\c_glowbase.cpp"
+				$File	"glowstencil\c_glowbase.h"
+			}
+
+			$Folder	"Items"
+			{
+				$File	"dmc\c_item.cpp"
+				$File	"dmc\quake3bob.h"
+			}
+
 			$Folder	"Weapons"
 			{
 				$File	"hl2mp\c_te_hl2mp_shotgun_shot.cpp"
 				$File	"dmc\c_projectile_rocket.cpp"
 				$File	"$SRCDIR\game\shared\hl2mp\weapon_crowbar.cpp"
-				$File	"$SRCDIR\game\shared\hl2mp\weapon_shotgun.cpp"
-				$File	"$SRCDIR\game\shared\hl2mp\weapon_shotgun.h"
-				$File	"$SRCDIR\game\shared\hl2mp\weapon_supershotgun.cpp"
-				$File	"$SRCDIR\game\shared\hl2mp\weapon_nailgun.cpp"
-				$File	"$SRCDIR\game\shared\hl2mp\weapon_supernailgun.cpp"
-				$File	"$SRCDIR\game\shared\hl2mp\weapon_grenadelauncher.cpp"
-				$File	"$SRCDIR\game\shared\hl2mp\weapon_rocketlauncher.cpp"
-				$File	"$SRCDIR\game\shared\hl2mp\weapon_rocketlauncher.h"
+				$File	"$SRCDIR\game\shared\dmc\weapon_shotgun.cpp"
+				$File	"$SRCDIR\game\shared\dmc\weapon_shotgun.h"
+				$File	"$SRCDIR\game\shared\dmc\weapon_supershotgun.cpp"
+				$File	"$SRCDIR\game\shared\dmc\weapon_nailgun.cpp"
+				$File	"$SRCDIR\game\shared\dmc\weapon_supernailgun.cpp"
+				$File	"$SRCDIR\game\shared\dmc\weapon_grenadelauncher.cpp"
+				$File	"$SRCDIR\game\shared\dmc\weapon_rocketlauncher.cpp"
+				$File	"$SRCDIR\game\shared\dmc\weapon_rocketlauncher.h"
+				$File	"$SRCDIR\game\shared\dmc\weapon_lightning.cpp"
 				$File	"$SRCDIR\game\shared\hl2mp\weapon_physcannon.cpp"
 				$File	"$SRCDIR\game\shared\hl2mp\weapon_physcannon.h"
 				$File	"$SRCDIR\game\shared\hl2mp\weapon_hl2mpbase.cpp"
@@ -147,8 +160,6 @@ $Project "Client"
 				$File	"$SRCDIR\game\shared\hl2mp\weapon_hl2mpbasebasebludgeon.h"
 				$File	"$SRCDIR\game\shared\hl2mp\weapon_hl2mpbasehlmpcombatweapon.cpp"
 				$File	"$SRCDIR\game\shared\hl2mp\weapon_hl2mpbasehlmpcombatweapon.h"
-
-
 			}
 
 			$Folder	"UI"
